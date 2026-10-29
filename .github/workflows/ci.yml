@@ -76,6 +76,12 @@ jobs:
             app/build/reports
             app/build/test-results
 
+      - name: Summary
+        if: always()
+        run: |
+          python3 scripts/ci-summary.py app/build/test-results
+          cat permissions.txt 2>/dev/null || true
+
   emulator:
     name: Emulator tests (API ${{ matrix.api }})
     runs-on: ubuntu-24.04
@@ -112,13 +118,14 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
-          target: default
+          # The AOSP "default" image for API 26 has no WebView at all.
+          target: google_apis
           arch: x86_64
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: |
-            adb shell dumpsys webviewupdate | head -n 12
+            adb shell dumpsys webviewupdate | grep -iE "current webview package|valid package" | tee webview.txt
             ./gradlew --no-daemon connectedDebugAndroidTest
 
       - name: Upload test reports
@@ -129,3 +136,9 @@ jobs:
           path: |
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
+
+      - name: Summary
+        if: always()
+        run: |
+          cat webview.txt 2>/dev/null || true
+          python3 scripts/ci-summary.py app/build/outputs/androidTest-results
