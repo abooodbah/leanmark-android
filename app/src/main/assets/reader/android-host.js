@@ -96,6 +96,23 @@
     }
   });
 
+  // Below 560 px the desktop stylesheet hides the file name but keeps the
+  // find field at its natural width and an empty 52 px match count, so the
+  // buttons ran past the right edge of a phone. These rules give the find
+  // field the room that is left, and keep every control in one row on
+  // screen down to 320 px. They apply only at phone widths.
+  var phoneStyle = document.createElement("style");
+  phoneStyle.textContent =
+    "@media (max-width: 560px) {" +
+    " .topbar { padding-right: 12px; padding-left: 12px; }" +
+    " .identity { display: none; }" +
+    " .toolbar { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }" +
+    " .search-field { flex: 1 1 0; min-width: 96px; }" +
+    " #findCount:empty { min-width: 0; padding-right: 0; }" +
+    " .toolbar .button { flex: 0 0 auto; padding-right: 10px; padding-left: 10px; }" +
+    "}";
+  document.head.appendChild(phoneStyle);
+
   // The app needs to know when the figure viewer is open, so that back closes
   // it instead of leaving the app.
   document.addEventListener("DOMContentLoaded", function () {
