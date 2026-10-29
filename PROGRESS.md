@@ -20,12 +20,11 @@ Updated with every merge. The next session starts here.
   and API 34 (WebView 113), budgets against the base branch and an empty
   app, APK contents, the arm64 download size and a native-library
   breakdown. Mutation check: `mutations.yml` with `mutations/*.json`.
-- Store texts, data safety, content rating and closed-test plan in
-  `store/`; signing steps in the README.
+- Store texts, data safety, content rating, closed-test plan and light and
+  dark screenshots in `store/`; signing steps in the README.
 
 ## In progress
 
-- Store screenshots (light and dark) from the `screenshots` CI job.
 - Release v0.1.0.
 
 ## Remaining
@@ -40,29 +39,38 @@ Updated with every merge. The next session starts here.
   are not shown: a shared file comes without access to its folder.
 - WebView 69 to 104 shows no match count in Find; Enter still finds the
   next match. Mermaid needs WebView 94.
-- The WebView renderer uses about 300 MB after a 1 MiB document with 11
-  Mermaid diagrams.
+- The WebView renderer uses about 270 to 300 MB after a 1 MiB document with
+  11 Mermaid diagrams.
+- On a phone the desktop toolbar is wider than the screen, so the Open
+  button is cut at the right edge (see `store/screenshots`).
+- Half of the native library is the statically linked C++ runtime.
 - Release builds from CI are signed with a throwaway key that changes with
   every run, so one release cannot be installed over another; uninstall
   first.
 - The emulator has no GPU, so start time and jank from CI are not the
-  budget check.
+  budget check, and in some runs the scrolling measure did not register
+  frames at all.
 
 ## Measured numbers
 
-From the budgets job on an API 34 emulator (SwiftShader, no GPU), PR #2,
-run 40833403439, unless noted.
+From the budgets job on an API 34 emulator (SwiftShader, no GPU), PR #3,
+run 40838486045. The empty app took 1,987 ms to its first frame there.
 
 | Measure | Value |
 | --- | ---: |
-| Release APK, all ABIs | 4,083,593 bytes |
-| Cold start to first frame, simple.md | 1,908 ms (skeleton app: 1,716 ms) |
-| Cold start to document drawn, simple.md | 2,890 ms |
-| App PSS after large.md | 80,767 KB |
-| WebView renderer PSS after large.md | 307,549 KB |
-| Total PSS after large.md | 388,316 KB |
+| Release APK, all ABIs | 4,102,729 bytes |
+| What Play delivers to an arm64-v8a phone | 2,311,362 bytes installed, 1,496,762 download |
+| First frame minus the empty app, simple.md | 187 ms |
+| Document drawn minus the empty app's first frame, simple.md | 1,312 ms |
+| large.md drawn after a cold start | 6,304 ms |
+| Total PSS after simple.md, app and renderer | 114,096 KB |
+| App PSS after large.md | 77,758 KB |
+| WebView renderer PSS after large.md | 267,196 KB |
+| Total PSS after large.md | 344,836 KB |
 
-The arm64 download size and the empty-app baseline come from PR #3's run.
+Where the start time goes with simple.md (ms from the activity's
+creation): WebView created 819, page loaded 2,332, document sent 2,349,
+document drawn 2,895.
 
 ## Phone test
 
