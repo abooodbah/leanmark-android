@@ -158,7 +158,7 @@ jobs:
           script: |
             df -h / && free -m
             adb shell dumpsys webviewupdate | grep -iE "current webview package|valid package" | tee webview.txt
-            ./gradlew --no-daemon connectedDebugAndroidTest
+            ./gradlew --no-daemon connectedDebugAndroidTest || { mkdir -p app/build/outputs/androidTest-results; adb logcat -d -v brief AndroidRuntime:E TestRunner:W LeanMarkPage:D chromium:W '*:S' | tail -n 150 > app/build/outputs/androidTest-results/logcat.txt; exit 1; }
 
       - name: Upload test reports
         if: always()
