@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Drop the phone style",
+    "suite": "device",
+    "file": "app/src/main/assets/reader/android-host.js",
+    "old": "  document.head.appendChild(phoneStyle);\n",
+    "new": ""
+  },
+  {
+    "name": "Let the toolbar wrap and keep its width",
+    "suite": "device",
+    "file": "app/src/main/assets/reader/android-host.js",
+    "old": "    \" .toolbar { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }\" +\n",
+    "new": ""
+  },
+  {
+    "name": "Keep the find field at its desktop width",
+    "suite": "device",
+    "file": "app/src/main/assets/reader/android-host.js",
+    "old": "    \" .search-field { flex: 1 1 0; min-width: 96px; }\" +\n",
+    "new": ""
+  },
+  {
+    "name": "Keep the empty match count's width",
+    "suite": "device",
+    "file": "app/src/main/assets/reader/android-host.js",
+    "old": "    \" #findCount:empty { min-width: 0; padding-right: 0; }\" +\n",
+    "new": ""
+  },
+  {
+    "name": "Keep the app name in the top bar",
+    "suite": "device",
+    "file": "app/src/main/assets/reader/android-host.js",
+    "old": "    \" .identity { display: none; }\" +\n",
+    "new": ""
+  },
+  {
+    "name": "Keep the desktop button padding",
+    "suite": "device",
+    "file": "app/src/main/assets/reader/android-host.js",
+    "old": "    \" .toolbar .button { flex: 0 0 auto; padding-right: 10px; padding-left: 10px; }\" +\n",
+    "new": ""
+  }
+]
