@@ -25,6 +25,14 @@ class ReaderCommandTest {
     }
 
     @Test
+    fun theSofterDarkThemesAreKept() {
+        // Desktop 0.5.0 added Dim and Dusk; names are matched ignoring ASCII case.
+        assertEquals(ReaderCommand.Theme("dim"), ReaderCommand.parse("theme|dim"))
+        assertEquals(ReaderCommand.Theme("dusk"), ReaderCommand.parse("theme|DUSK"))
+        assertEquals(ReaderCommand.Theme("system"), ReaderCommand.parse("theme|neon"))
+    }
+
+    @Test
     fun zoom() {
         assertEquals(ReaderCommand.Zoom(1), ReaderCommand.parse("zoom|in"))
         assertEquals(ReaderCommand.Zoom(-1), ReaderCommand.parse("zoom|out"))

@@ -86,6 +86,16 @@
     attributeFilter: ["data-render-state"]
   });
 
+  // reader.css hides the theme button below 760 px, where desktop windows
+  // rarely go. On a phone that is the only place to choose a theme, so the
+  // button stays visible. An inline style wins over the stylesheet's rule.
+  document.addEventListener("DOMContentLoaded", function () {
+    var themeButton = document.getElementById("themeButton");
+    if (themeButton) {
+      themeButton.style.display = "inline-flex";
+    }
+  });
+
   // The app needs to know when the figure viewer is open, so that back closes
   // it instead of leaving the app.
   document.addEventListener("DOMContentLoaded", function () {

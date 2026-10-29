@@ -1,0 +1,17 @@
+[
+  {"name": "Drop Dusk from the theme names", "suite": "jvm",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/ReaderCommand.kt",
+   "old": "listOf(\"system\", \"light\", \"dark\", \"dim\", \"dusk\")", "new": "listOf(\"system\", \"light\", \"dark\", \"dim\")"},
+  {"name": "Give Dusk's bars the Dark surface", "suite": "device",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt",
+   "old": "\"dusk\" to 0xFF29241E.toInt()", "new": "\"dusk\" to 0xFF1A1917.toInt()"},
+  {"name": "Paint the window with the surface, not the canvas", "suite": "device",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt",
+   "old": "window.setBackgroundDrawable(ColorDrawable(canvas))", "new": "window.setBackgroundDrawable(ColorDrawable(surface))"},
+  {"name": "Treat only Dark as dark for the bar icons", "suite": "device",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt",
+   "old": "val dark = MarkdownCore.isDarkTheme(theme, night)", "new": "val dark = theme == \"dark\" || (theme == \"system\" && night)"},
+  {"name": "Leave the theme button hidden on phones", "suite": "device",
+   "file": "app/src/main/assets/reader/android-host.js",
+   "old": "themeButton.style.display = \"inline-flex\";", "new": "themeButton.style.display = \"\";"}
+]

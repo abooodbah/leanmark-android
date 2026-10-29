@@ -22,6 +22,18 @@ object MarkdownCore {
 
     @JvmStatic
     external fun normalizeZoom(value: Double): Double
+
+    /** The core's name for a saved or page-requested theme; unknown names give "system". */
+    @JvmStatic
+    external fun themeName(name: String): String
+
+    /** Whether the bars around the page are dark; [systemDark] matters only for "system". */
+    @JvmStatic
+    external fun isDarkTheme(name: String, systemDark: Boolean): Boolean
+
+    /** The page background (--canvas) as an opaque ARGB colour, painted before the page draws. */
+    @JvmStatic
+    external fun themeCanvas(name: String, systemDark: Boolean): Int
 }
 
 /** Thrown by the native core. [stale] means the file no longer matches the page. */
