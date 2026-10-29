@@ -9,7 +9,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
-import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -99,7 +99,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
-        theme = prefs.getString(KEY_THEME, "system") ?: "system"
+        theme = ReaderCommand.themeName(prefs.getString(KEY_THEME, null))
         zoom = prefs.getFloat(KEY_ZOOM, 1f).toDouble()
 
         root = FrameLayout(this)
@@ -313,7 +313,7 @@ class MainActivity : Activity() {
     private fun createWebView() {
         if (isDebuggable()) WebView.setWebContentsDebuggingEnabled(true)
         val view = WebView(this)
-        view.setBackgroundColor(Color.TRANSPARENT)
+        view.setBackgroundColor(MarkdownCore.themeCanvas(theme, isNight()))
         with(view.settings) {
             javaScriptEnabled = true
             allowFileAccess = false
@@ -639,9 +639,17 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION")
     private fun applyBarColors() {
-        val dark = theme == "dark" || (theme == "system" && isNight())
-        val surface = if (dark) SURFACE_DARK else SURFACE_LIGHT
+        val night = isNight()
+        val dark = MarkdownCore.isDarkTheme(theme, night)
+        val effective = if (theme == "system") (if (night) "dark" else "light") else theme
+        val surface = SURFACES[effective] ?: SURFACES.getValue("light")
+        val canvas = MarkdownCore.themeCanvas(theme, night)
+        // The bars sit next to the page's top bar, which is --surface. The
+        // window and the WebView take --canvas, so nothing flashes a different
+        // colour before the page draws.
         root.setBackgroundColor(surface)
+        window.setBackgroundDrawable(ColorDrawable(canvas))
+        webView?.setBackgroundColor(canvas)
         window.statusBarColor = surface
         window.navigationBarColor = surface
         if (Build.VERSION.SDK_INT >= 30) {
@@ -671,9 +679,14 @@ class MainActivity : Activity() {
         const val STATE_URI = "document"
         const val REQUEST_OPEN = 1
 
-        // reader.css --surface in its light and dark themes.
-        const val SURFACE_LIGHT = 0xFFFFFFFF.toInt()
-        const val SURFACE_DARK = 0xFF1A1917.toInt()
+        // reader.css --surface for each theme. ThemeTest compares these with
+        // the page, so they cannot drift from the desktop's colours.
+        val SURFACES = mapOf(
+            "light" to 0xFFFFFFFF.toInt(),
+            "dark" to 0xFF1A1917.toInt(),
+            "dim" to 0xFF25282C.toInt(),
+            "dusk" to 0xFF29241E.toInt(),
+        )
 
         val PICKER_TYPES = arrayOf("text/markdown", "text/x-markdown", "text/plain", "application/octet-stream")
 

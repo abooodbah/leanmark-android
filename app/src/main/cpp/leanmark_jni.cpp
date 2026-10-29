@@ -126,4 +126,40 @@ Java_io_github_abooodbah_leanmark_MarkdownCore_normalizeZoom(
     return core::NormalizeZoom(value);
 }
 
+namespace {
+
+core::Theme ThemeFrom(JNIEnv* env, jstring name) {
+    if (name == nullptr) {
+        return core::Theme::System;
+    }
+    const char* chars = env->GetStringUTFChars(name, nullptr);
+    const core::Theme theme = core::ParseTheme(chars == nullptr ? "" : chars);
+    if (chars != nullptr) {
+        env->ReleaseStringUTFChars(name, chars);
+    }
+    return theme;
+}
+
+}  // namespace
+
+JNIEXPORT jstring JNICALL
+Java_io_github_abooodbah_leanmark_MarkdownCore_themeName(
+    JNIEnv* env, jclass, jstring name) {
+    return env->NewStringUTF(core::ThemeName(ThemeFrom(env, name)));
+}
+
+JNIEXPORT jboolean JNICALL
+Java_io_github_abooodbah_leanmark_MarkdownCore_isDarkTheme(
+    JNIEnv* env, jclass, jstring name, jboolean systemDark) {
+    return core::IsDarkTheme(ThemeFrom(env, name), systemDark == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jint JNICALL
+Java_io_github_abooodbah_leanmark_MarkdownCore_themeCanvas(
+    JNIEnv* env, jclass, jstring name, jboolean systemDark) {
+    const core::ThemeColor color = core::ThemeCanvas(ThemeFrom(env, name), systemDark == JNI_TRUE);
+    return static_cast<jint>(0xFF000000u | (static_cast<unsigned>(color.red) << 16) |
+                             (static_cast<unsigned>(color.green) << 8) | color.blue);
+}
+
 }  // extern "C"
