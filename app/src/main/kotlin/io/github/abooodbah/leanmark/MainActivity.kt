@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
@@ -51,6 +52,15 @@ import kotlin.math.roundToInt
  * grant that came with the intent and never writes to them.
  */
 class MainActivity : Activity() {
+    // Milliseconds from creation to each step of the first document, for
+    // scripts/measure.sh. Each step is logged once per activity.
+    private val createdAt = SystemClock.uptimeMillis()
+    private val phases = HashSet<String>()
+
+    private fun phase(name: String) {
+        if (phases.add(name)) Log.i("LeanMarkTiming", "phase $name ${SystemClock.uptimeMillis() - createdAt} ms")
+    }
+
 
     private sealed interface Source {
         data class FromUri(val uri: Uri) : Source
@@ -119,6 +129,7 @@ class MainActivity : Activity() {
         }
         try {
             createWebView()
+            phase("webview created")
         } catch (error: RuntimeException) {
             // Thrown when the WebView provider is missing or being updated.
             showUnsupported(WebViewSupport.message(null))
@@ -369,6 +380,7 @@ class MainActivity : Activity() {
         override fun onPageFinished(view: WebView, url: String) {
             if (view === webView && !portPosted && url.startsWith(ReaderAssets.PAGE_URL)) {
                 portPosted = true
+                phase("page loaded")
                 connect(view)
             }
         }
@@ -421,6 +433,7 @@ class MainActivity : Activity() {
         when (val command = ReaderCommand.parse(message) ?: return) {
             ReaderCommand.Ready -> {
                 readerReady = true
+                phase("reader ready")
                 send(HostMessages.HOST)
                 sendCurrentView()
             }
@@ -449,6 +462,7 @@ class MainActivity : Activity() {
                     // The page was replaced after it had the document.
                     source?.let(::open)
                 } else {
+                    phase("document sent")
                     send(HostMessages.document(theme, current.name, current.path, current.bytes, fields))
                     current.fields = null
                 }
@@ -465,6 +479,7 @@ class MainActivity : Activity() {
             0,
             object : WebView.VisualStateCallback() {
                 override fun onComplete(requestId: Long) {
+                    phase("drawn")
                     try {
                         reportFullyDrawn()
                     } catch (error: SecurityException) {
