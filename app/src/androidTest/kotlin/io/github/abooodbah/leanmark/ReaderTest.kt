@@ -165,7 +165,19 @@ class ReaderTest {
         Reader.open("showcase.md").use { scenario ->
             Reader.waitForDocument(scenario)
             Reader.js(scenario, "var f=document.getElementById('findInput'); f.value='bullet'; f.dispatchEvent(new Event('input'))")
-            Reader.waitFor(scenario, "document.getElementById('findCount').textContent === '1/2'")
+            if (Reader.webViewMajor >= 105) {
+                Reader.waitFor(scenario, "document.getElementById('findCount').textContent === '1/2'")
+            } else {
+                // The page counts matches with the CSS Custom Highlight API
+                // (Chrome 105). Without it the page says "Enter", and Enter
+                // selects the next match with window.find, as on the desktop.
+                Reader.waitFor(scenario, "document.getElementById('findCount').textContent === 'Enter'")
+                Reader.js(
+                    scenario,
+                    "document.getElementById('findInput').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}))",
+                )
+                Reader.waitFor(scenario, "String(window.getSelection()).toLowerCase() === 'bullet'")
+            }
         }
     }
 
