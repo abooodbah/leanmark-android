@@ -1,0 +1,24 @@
+LeanMark is a viewer for Markdown files. It is for reading, not writing: open a README, notes or a report and read it as a formatted page.
+
+It shows GitHub-flavored Markdown: headings, lists, task lists, tables, code blocks, links and images embedded in the file. Mermaid diagrams are drawn on the phone. Tap the expand button on a diagram to see it full screen, with zoom and panning.
+
+Open a file from your file manager, from an email attachment or from your browser's downloads with "Open with", share a file or Markdown text to LeanMark, or use the Open button inside the app.
+
+What it does:
+- Find in the document
+- Copy a section, or the whole file, as the original Markdown
+- Pinch to zoom; follows the system font size
+- Five themes: System (follows the phone), Light, Dark, and two softer dark themes, Dim and Dusk
+- Keeps your place when you rotate the phone
+- Links to websites open in your browser only when you tap them
+
+Privacy:
+LeanMark has no internet permission, so it cannot send or receive anything over the network. It asks for no permissions at all. It does not load remote images, does not run HTML or scripts from the document, and has no analytics, no ads and no accounts. It reads the file you open and never changes it.
+
+Limits:
+- Files up to 32 MB.
+- Files must be UTF-8. Other encodings show a message instead of garbled text.
+- Images stored next to the Markdown file are not shown, because Android only gives the app access to the one file you open. Images embedded in the file as data are shown.
+- Links to other Markdown files cannot be followed for the same reason.
+
+LeanMark uses the Android System WebView that is already on your phone to draw the page, the same reader page as the desktop version of LeanMark for Windows, macOS and Linux.

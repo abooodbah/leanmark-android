@@ -1,0 +1,1 @@
+Read Markdown files and Mermaid diagrams offline. No network access at all.
