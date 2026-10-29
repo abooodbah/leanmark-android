@@ -206,6 +206,7 @@ class ReaderTest {
     }
 
     private fun waitForClip(scenario: ActivityScenario<MainActivity>, expected: String): String? {
+        Focus.ensure()
         var clip: String? = null
         val deadline = SystemClock.uptimeMillis() + 10_000
         while (SystemClock.uptimeMillis() < deadline) {
@@ -361,11 +362,13 @@ class ReaderTest {
                 if (!open) SystemClock.sleep(50)
             }
             assertTrue("the app knows the viewer is open", open)
+            Focus.ensure()
             Reader.instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             Reader.waitFor(scenario, "document.getElementById('figureViewer').hidden")
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
             // The second back leaves the app. From Android 12 a root launcher
             // activity is moved to the background instead of finishing.
+            Focus.ensure()
             Reader.instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             val gone = SystemClock.uptimeMillis() + 5_000
             while (scenario.state == Lifecycle.State.RESUMED && SystemClock.uptimeMillis() < gone) SystemClock.sleep(50)
