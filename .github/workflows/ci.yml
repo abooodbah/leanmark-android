@@ -89,8 +89,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 26 is the minimum supported level, 34 a current one.
-        api: [26, 34]
+        # 26 is the minimum supported level, 34 a current one. The AOSP
+        # "default" image for API 26 has no WebView, so that level uses the
+        # Google APIs image, which has WebView 69.
+        include:
+          - api: 26
+            target: google_apis
+          - api: 34
+            target: default
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -118,8 +124,8 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
-          # The AOSP "default" image for API 26 has no WebView at all.
-          target: google_apis
+          target: ${{ matrix.target }}
+          cores: 4
           arch: x86_64
           profile: pixel_6
           disable-animations: true
