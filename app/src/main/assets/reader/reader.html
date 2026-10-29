@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' https://*.doc.leanmark.invalid leanmark-doc: data:; connect-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <title>LeanMark</title>
+    <link rel="stylesheet" href="/reader.css" />
+    <script src="/android-host.js"></script>
+    <script src="/reader.js" defer></script>
+  </head>
+  <body>
+    <header class="chrome">
+      <div class="topbar">
+        <div class="identity" role="group" aria-label="Current document">
+          <span class="wordmark" aria-hidden="true">LM</span>
+          <span class="file-copy">
+            <strong id="fileName">LeanMark</strong>
+            <span id="fileMeta">Lightweight Markdown reader</span>
+          </span>
+        </div>
+
+        <div class="toolbar" aria-label="Reader controls">
+          <label class="search-field" for="findInput">
+            <span class="visually-hidden">Find in document</span>
+            <input
+              id="findInput"
+              type="search"
+              placeholder="Find"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <span id="findCount" aria-live="polite"></span>
+          </label>
+          <button
+            id="copyButton"
+            class="button button-ghost"
+            type="button"
+            title="Copy the whole document (Ctrl+Shift+C)"
+            disabled
+          >
+            Copy
+          </button>
+          <button id="themeButton" class="button button-ghost" type="button">
+            System
+          </button>
+          <button id="openButton" class="button button-secondary" type="button">
+            Open
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="tabStrip"
+        class="tab-strip"
+        role="tablist"
+        aria-label="Open documents"
+        hidden
+      ></div>
+
+      <div
+        id="readingProgress"
+        class="reading-progress"
+        role="progressbar"
+        aria-label="Reading progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      ></div>
+    </header>
+
+    <div id="readerPane" class="content-grid" hidden>
+      <nav id="outline" class="outline" aria-label="Document outline" hidden>
+        <span class="outline-label">On this page</span>
+        <ol id="outlineList"></ol>
+      </nav>
+      <main id="mainContent" class="main-content">
+        <article id="article" class="article" tabindex="-1"></article>
+      </main>
+      <div class="layout-balance" aria-hidden="true"></div>
+    </div>
+
+    <main id="statePane" class="state-pane">
+      <div class="state-content">
+        <p class="state-eyebrow">LeanMark</p>
+        <h1 id="stateTitle">Read Markdown without opening an editor.</h1>
+        <p id="stateMessage">
+          Open a local Markdown file to begin. Diagrams render privately on this
+          computer.
+        </p>
+        <button id="stateOpenButton" class="button button-primary" type="button">
+          Open a Markdown file
+        </button>
+      </div>
+    </main>
+
+    <div
+      id="figureViewer"
+      class="figure-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="viewerTitle"
+      hidden
+    >
+      <div class="viewer-toolbar">
+        <span id="viewerTitle" class="viewer-title">Diagram</span>
+        <div class="viewer-controls" role="group" aria-label="Zoom">
+          <button
+            class="viewer-button"
+            type="button"
+            data-action="out"
+            aria-label="Zoom out"
+            title="Zoom out (−)"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
+          </button>
+          <span id="viewerLevel" class="viewer-level">100%</span>
+          <button
+            class="viewer-button"
+            type="button"
+            data-action="in"
+            aria-label="Zoom in"
+            title="Zoom in (+)"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" /></svg>
+          </button>
+          <button
+            class="viewer-button viewer-text-button"
+            type="button"
+            data-action="fit"
+            title="Fit to window (0)"
+          >
+            Fit
+          </button>
+          <button
+            class="viewer-button viewer-text-button"
+            type="button"
+            data-action="actual"
+            title="Actual size (1)"
+          >
+            1:1
+          </button>
+        </div>
+        <button
+          class="viewer-button"
+          type="button"
+          data-action="close"
+          aria-label="Close"
+          title="Close (Esc)"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+        </button>
+      </div>
+      <div
+        id="viewerStage"
+        class="viewer-stage"
+        tabindex="0"
+        aria-label="Use the arrow keys to pan, plus and minus to zoom, and Escape to close."
+      >
+        <div id="viewerCanvas" class="viewer-canvas"></div>
+      </div>
+    </div>
+
+    <div id="zoomIndicator" class="zoom-indicator" aria-hidden="true" hidden></div>
+    <div id="statusToast" class="status-toast" role="status" hidden></div>
+    <div id="liveStatus" class="visually-hidden" aria-live="polite"></div>
+  </body>
+</html>
