@@ -96,6 +96,19 @@ object Reader {
         instrumentation.sendPointerSync(MotionEvent.obtain(down, up, MotionEvent.ACTION_UP, x, endY, 0))
     }
 
+    /** Bytes the fixture provider delivered for its last stream of [name]. */
+    fun written(name: String): Long {
+        val deadline = SystemClock.uptimeMillis() + 15_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            val bytes = context.contentResolver
+                .call(FixtureProvider.uri(name), "written", name, null)?.getLong("bytes") ?: -1
+            if (bytes >= 0) return bytes
+            SystemClock.sleep(100)
+        }
+        fail("the fixture stream for $name did not finish")
+        return -1
+    }
+
     /** The WebView major version, or 0 when there is none. */
     val webViewMajor: Int
         get() = WebViewSupport.majorVersion(WebView.getCurrentWebViewPackage()?.versionName) ?: 0

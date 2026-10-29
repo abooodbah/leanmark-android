@@ -119,6 +119,10 @@ class ReaderTest {
             Reader.waitForError(scenario)
             assertTrue(Reader.text(scenario, "#stateMessage").orEmpty().contains("32 MB safety limit"))
         }
+        // The app stopped reading near the limit instead of taking the whole
+        // stream; the core alone would give the same message after reading it all.
+        val written = Reader.written("huge.md-nosize")
+        assertTrue("delivered $written bytes", written in 1 until 33L * 1024 * 1024)
     }
 
     @Test

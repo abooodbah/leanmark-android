@@ -5,11 +5,13 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.charset.Charset
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Serves test documents through pipes, as many real providers do, so the app
@@ -52,14 +54,20 @@ class FixtureProvider : ContentProvider() {
         val name = uri.lastPathSegment ?: throw FileNotFoundException("$uri")
         sizeOf(name) // Throws for unknown names before a pipe is made.
         val (read, write) = ParcelFileDescriptor.createReliablePipe()
+        written.remove(name)
         Thread {
+            var total = 0L
             ParcelFileDescriptor.AutoCloseOutputStream(write).use { out ->
                 try {
-                    write(name) { chunk -> out.write(chunk) }
+                    write(name) { chunk ->
+                        out.write(chunk)
+                        total += chunk.size
+                    }
                 } catch (closed: IOException) {
                     // The reader stopped early, which is what the size limit should do.
                 }
             }
+            written[name] = total
         }.start()
         return read
     }
@@ -103,6 +111,10 @@ class FixtureProvider : ContentProvider() {
         }
     }
 
+    /** "written": how many bytes the last stream of [arg] delivered, or -1 while it runs. */
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle? =
+        if (method == "written" && arg != null) Bundle().apply { putLong("bytes", written[arg] ?: -1) } else null
+
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0
@@ -113,8 +125,10 @@ class FixtureProvider : ContentProvider() {
         /** About 1 MiB: the "300-page" document used for memory and scrolling. */
         const val LARGE_BYTES = 1L * 1024 * 1024
 
-        /** Just past the 32 MiB limit. */
-        const val HUGE_BYTES = 32L * 1024 * 1024 + 1
+        /** Well past the 32 MiB limit, so a reader that stops at the limit visibly stops early. */
+        const val HUGE_BYTES = 40L * 1024 * 1024
+
+        private val written = ConcurrentHashMap<String, Long>()
 
         fun uri(name: String): Uri = Uri.parse("content://$AUTHORITY/$name")
     }
