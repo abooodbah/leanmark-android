@@ -1,0 +1,149 @@
+# Changelog
+
+All notable changes to LeanRows are recorded in this file. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases use
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] - 2026-09-24
+
+### Added
+
+- Open files now share one window, each in its own tab. Opening a file from
+  Explorer or the command line while LeanRows is running adds a tab to the
+  running window instead of starting another process. Opening a file that is
+  already open selects its tab.
+- A tab strip appears when two or more files are open. Click a tab to show it,
+  and click its close mark or middle-click it to close it. `Ctrl+Tab` and
+  `Ctrl+Shift+Tab` (or `Ctrl+PgDn` and `Ctrl+PgUp`) move between tabs,
+  `Ctrl+1` to `Ctrl+8` pick a tab by position, `Ctrl+9` picks the last tab,
+  and `Ctrl+W` or `Ctrl+F4` closes the current tab. The overflow menu has
+  Close tab and Next tab.
+- Each tab keeps its own scroll position, selected row, column widths, and Find
+  state.
+- The Open dialog accepts several files, and several supported files can be
+  dropped at once.
+
+### Changed
+
+- Five open files now run in one process instead of five. Measured with the
+  QA fixtures, five files use 3.8 MiB private memory and an 18.5 MiB working
+  set, compared with 14.7 MiB and 88.1 MiB for five 0.1.3 windows. With one
+  file open, the two versions measure within 0.1 MiB of each other.
+- Minimizing the window returns its working set to Windows. In the same
+  measurement it drops from 18.5 MiB to 0.8 MiB, and pages come back as the
+  window is used.
+- Starting LeanRows again while it is running brings the running window
+  forward instead of opening a second, empty window.
+- A window with no open file no longer starts a document worker thread. The
+  worker starts with the first file.
+- At most 32 files can be open at once, so memory stays bounded.
+- The command line accepts several files. An unknown option that starts with
+  `--` is now a usage error, and `--` ends option parsing for file names that
+  start with `--`.
+
+### Fixed
+
+- Fixed the file name, file details, and Match case controls showing as white
+  blocks in the top bar, most visibly in the Dark appearance. Their background
+  brush was returned through a conversion that failed for some Windows brush
+  handles, so the controls were left unpainted. The problem dated from the
+  0.1.2 redesign and appeared in about half of launches.
+
+## [0.1.3] - 2026-08-09
+
+### Fixed
+
+- Fixed System appearance so it follows the active Windows app theme instead
+  of always resolving to Light.
+- Restored the complete System, Light, and Dark appearance cycle, including
+  persistence of an explicit Dark selection.
+- Applied the selected appearance consistently to native child controls while
+  retaining their native roles, keyboard behavior, and accessibility
+  semantics.
+
+### Changed
+
+- Replaced the platform progress animation with a flat, two-DIP rule below the
+  top bar. Its accent prefix tracks indexing progress without a marquee.
+- Strengthened the native shell smoke to exercise the full appearance cycle,
+  persistence and runtime repainting, and the progress control's class, value,
+  style, and rendered pixels.
+
+## [0.1.2] - 2026-08-09
+
+### Added
+
+- Added a responsive native top bar that keeps file identity, inline literal
+  search, and primary document actions available across narrow, default, and
+  wide window layouts.
+- Added System and Light appearance choices, with a system-color fallback when
+  Windows high contrast is active.
+
+### Changed
+
+- Reworked the Windows shell around warm, opaque surfaces, restrained rules,
+  deliberate spacing, and one blue action accent to align with the LeanMark
+  visual family.
+- Replaced the modal Find entry point with an inline search field, Match case
+  toggle, and previous/next controls while retaining `F3` and `Shift+F3`
+  navigation.
+- Preserved the owner-data grid and bounded worker/cache model beneath the new
+  shell, so the visual redesign does not introduce a whole-file UI model.
+
+## [0.1.1] - 2026-08-09
+
+### Fixed
+
+- Fixed the per-user installer failure that occurred when PowerShell bound the
+  empty name required for a registry default value.
+- Fixed registry-key creation so repeated writes preserve earlier sibling
+  values, and opened direct-default keys writable for exact uninstall
+  restoration or removal.
+
+### Changed
+
+- The installer now records and sets a direct per-user default for supported
+  extensions that have no protected Explorer `UserChoice`, while continuing to
+  register all supported extensions in **Open with**.
+- Reinstallation preserves the original recorded handler, and uninstallation
+  restores or removes only direct defaults that still point to LeanRows.
+- Protected `UserChoice` selections, later user changes, and `.txt`
+  associations remain untouched.
+
+## [0.1.0] - 2026-08-09
+
+### Added
+
+- Native Windows x64 viewer for CSV, TSV, JSONL, NDJSON, log, and text files.
+- Progressive first-viewport loading with background indexing.
+- Quote-aware CSV and TSV record scanning across fixed-size read blocks.
+- Independent native columns for bounded CSV and TSV fields.
+- Fixed-capacity adaptive row checkpoints and bounded viewport previews.
+- Demand-driven literal Find with next/previous navigation, exact or ASCII-only
+  case-insensitive byte matching, bounded result pages, and a 64 MiB scratch
+  quota.
+- Checked absolute-row navigation, bounded tab-delimited clipboard copy, and
+  supported-file drag-and-drop.
+- Read-only snapshot handles with source identity and revision checks.
+- Visible escaping of invalid UTF-8 bytes and explicit preview truncation.
+- Keyboard navigation, native accessibility names, system colors, and
+  per-monitor DPI support.
+- Deterministic unsigned portable ZIP, package manifest, SHA-256 checksum, and
+  optional per-user installer with Start menu and Installed Apps registration.
+- Automated core, adversarial-input, native-shell, document, packaging, and QA
+  harnesses.
+
+### Security
+
+- Remote and UNC paths, device paths, reparse points, symbolic links, and
+  non-regular files are rejected.
+- In-place source writes are not shared while a snapshot is open; atomic
+  replacement is detected before stale work can continue.
+- File content is displayed as inert native text and no network or telemetry
+  path is included.
+
+[0.2.0]: https://github.com/abooodbah/leanrows/releases/tag/v0.2.0
+[0.1.3]: https://github.com/abooodbah/leanrows/releases/tag/v0.1.3
+[0.1.2]: https://github.com/abooodbah/leanrows/releases/tag/v0.1.2
+[0.1.1]: https://github.com/abooodbah/leanrows/releases/tag/v0.1.1
+[0.1.0]: https://github.com/abooodbah/leanrows/releases/tag/v0.1.0
