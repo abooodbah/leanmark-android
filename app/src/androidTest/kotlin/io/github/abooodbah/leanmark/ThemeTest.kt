@@ -58,7 +58,10 @@ class ThemeTest {
             choose(scenario, name)
             val actual = expected.keys.associateWith { token(scenario, it) }
             assertEquals("$name tokens", expected, actual)
-            assertEquals("$name colour scheme", "dark", Reader.js(scenario, "getComputedStyle(document.documentElement).colorScheme"))
+            // The color-scheme property arrived in Chrome 81; older WebView has no value.
+            if (Reader.webViewMajor >= 81) {
+                assertEquals("$name colour scheme", "dark", Reader.js(scenario, "getComputedStyle(document.documentElement).colorScheme"))
+            }
         }
     }
 
