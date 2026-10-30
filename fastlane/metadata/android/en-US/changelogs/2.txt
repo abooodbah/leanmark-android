@@ -1,0 +1,1 @@
+The toolbar now fits a phone screen. Before, the Open button was cut off at the right edge. Find, Copy, theme and Open now stay on one row, and nothing scrolls sideways. On a narrow screen the app name in the top bar is hidden to make room.

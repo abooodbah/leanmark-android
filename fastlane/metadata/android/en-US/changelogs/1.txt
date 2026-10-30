@@ -1,0 +1,1 @@
+First release. A read-only Markdown viewer that opens .md files from a file manager, email or browser, with GitHub-flavored Markdown and Mermaid diagrams, offline. It uses the same reader and Markdown core as the desktop LeanMark. Themes: System, Light, Dark, Dim and Dusk. Find, section and whole-file copy, and a full-screen diagram viewer. No permissions and no network.
