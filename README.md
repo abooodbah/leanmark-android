@@ -6,6 +6,21 @@ documents with the same reader page.
 
 Work in progress. Not yet on Google Play.
 
+## Try it (closed test)
+
+LeanMark for Android is in a closed test on Google Play before its public release.
+To try it:
+
+1. Join the [Lean Apps testers group](https://groups.google.com/g/lean-apps-testers) with the Google account you use
+   on your phone.
+2. On your phone, open the [LeanMark tester page](https://play.google.com/apps/testing/io.github.abooodbah.leanmark), tap
+   **Become a tester**, then install LeanMark from Google Play.
+
+If the tester page says the app is not available yet, Google is still reviewing
+the test; try again a day later. Google asks testers to keep the app installed
+for 14 days. The APK is also attached to each
+[Android release](https://github.com/abooodbah/leanmark-android/releases).
+
 ## Building
 
 You need JDK 17 and the Android SDK (platform 36). Then:
