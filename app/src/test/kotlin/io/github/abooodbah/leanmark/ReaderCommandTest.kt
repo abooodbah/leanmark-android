@@ -33,6 +33,28 @@ class ReaderCommandTest {
     }
 
     @Test
+    fun textWidthsFromDesktop060() {
+        // Narrow, Wide and Full; names are matched ignoring ASCII case, and
+        // anything else, such as a name from a later version, gives Narrow.
+        assertEquals(ReaderCommand.Width("narrow"), ReaderCommand.parse("width|narrow"))
+        assertEquals(ReaderCommand.Width("wide"), ReaderCommand.parse("width|Wide"))
+        assertEquals(ReaderCommand.Width("full"), ReaderCommand.parse("WIDTH|FULL"))
+        assertEquals(ReaderCommand.Width("narrow"), ReaderCommand.parse("width|huge"))
+        assertEquals(ReaderCommand.Width("narrow"), ReaderCommand.parse("width|"))
+        assertEquals(listOf("narrow", "wide", "full"), ReaderCommand.WIDTHS)
+        assertEquals("narrow", ReaderCommand.widthName(null))
+        assertEquals("wide", ReaderCommand.widthName("wide"))
+        assertEquals("narrow", ReaderCommand.widthName("wide "))
+    }
+
+    @Test
+    fun theSettingsSheetReportsWhetherItIsOpen() {
+        assertEquals(ReaderCommand.Settings(true), ReaderCommand.parse("settings|open"))
+        assertEquals(ReaderCommand.Settings(false), ReaderCommand.parse("settings|closed"))
+        assertNull(ReaderCommand.parse("settings|maybe"))
+    }
+
+    @Test
     fun zoom() {
         assertEquals(ReaderCommand.Zoom(1), ReaderCommand.parse("zoom|in"))
         assertEquals(ReaderCommand.Zoom(-1), ReaderCommand.parse("zoom|out"))

@@ -3,6 +3,7 @@ package io.github.abooodbah.leanmark
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
+import android.view.InputDevice
 import android.view.MotionEvent
 import android.webkit.WebView
 import androidx.test.core.app.ActivityScenario
@@ -97,6 +98,62 @@ object Reader {
         }
         val up = down + (steps + 1) * 10L
         Focus.touch(target, MotionEvent.ACTION_UP, down, up, x, endY)
+    }
+
+    /**
+     * Two fingers in a vertical line on the middle of the WebView, [fromSpan]
+     * pixels apart, the lower one held and the upper one moved until they are
+     * [toSpan] apart: spreading them zooms in, pinching zooms out. The point
+     * between the fingers moves too, as in a real pinch, so a WebView that got
+     * these touches would also scroll.
+     */
+    fun pinch(scenario: ActivityScenario<MainActivity>, fromSpan: Float, toSpan: Float) {
+        val view = webView(scenario)
+        var activity: MainActivity? = null
+        scenario.onActivity { activity = it }
+        val target = activity!!
+        val location = IntArray(2)
+        val origin = IntArray(2)
+        instrumentation.runOnMainSync {
+            view.getLocationOnScreen(location)
+            target.window.decorView.getLocationOnScreen(origin)
+        }
+        val x = location[0] - origin[0] + view.width / 2f
+        val y = location[1] - origin[1] + view.height / 2f
+        val down = SystemClock.uptimeMillis()
+        fun send(action: Int, time: Long, span: Float, pointers: Int) {
+            val properties = Array(pointers) { index ->
+                MotionEvent.PointerProperties().apply {
+                    id = index
+                    toolType = MotionEvent.TOOL_TYPE_FINGER
+                }
+            }
+            val coordinates = Array(pointers) { index ->
+                MotionEvent.PointerCoords().apply {
+                    this.x = x
+                    this.y = y + fromSpan / 2 - if (index == 0) 0f else span
+                    pressure = 1f
+                    size = 1f
+                }
+            }
+            val event = MotionEvent.obtain(
+                down, time, action, pointers, properties, coordinates,
+                0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0,
+            )
+            instrumentation.runOnMainSync { target.dispatchTouchEvent(event) }
+            event.recycle()
+        }
+        val second = 1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT
+        send(MotionEvent.ACTION_DOWN, down, fromSpan, 1)
+        send(MotionEvent.ACTION_POINTER_DOWN or second, down + 10, fromSpan, 2)
+        val steps = 20
+        for (step in 1..steps) {
+            send(MotionEvent.ACTION_MOVE, down + 10 + step * 16L, fromSpan + (toSpan - fromSpan) * step / steps, 2)
+        }
+        val end = down + 10 + (steps + 1) * 16L
+        send(MotionEvent.ACTION_POINTER_UP or second, end, toSpan, 2)
+        send(MotionEvent.ACTION_UP, end + 10, toSpan, 1)
+        instrumentation.waitForIdleSync()
     }
 
     /** Bytes the fixture provider delivered for its last stream of [name]. */
