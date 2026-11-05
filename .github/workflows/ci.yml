@@ -78,6 +78,15 @@ jobs:
             python3 scripts/apk-contents.py app/build/outputs/apk/release/app-release.apk
           } | tee contents.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Check the APK carries no Kotlin metadata
+        # kotlin/*.kotlin_builtins and kotlin-tooling-metadata.json are for
+        # reflection and build tools; the app uses neither.
+        run: |
+          if unzip -Z1 app/build/outputs/apk/release/app-release.apk | grep -E '^(kotlin/|kotlin-tooling-metadata\.json$)'; then
+            echo "::error::The release APK carries the Kotlin metadata files listed above."
+            exit 1
+          fi
+
       - name: Size on an arm64 phone
         # What Google Play builds from the bundle for one phone: bundletool's
         # own split APKs for an arm64-v8a, API 34, 420 dpi, English device.
