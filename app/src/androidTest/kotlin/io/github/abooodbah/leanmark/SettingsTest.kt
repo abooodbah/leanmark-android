@@ -128,7 +128,9 @@ class SettingsTest {
         Reader.waitForDocument(scenario)
         val toolbar = "Math.round(document.querySelector('.topbar').getBoundingClientRect().height * 10)"
         val button = "getComputedStyle(document.getElementById('copyButton')).fontSize"
-        val article = "document.getElementById('article').getBoundingClientRect().height"
+        // The page's height, not the article's box: WebView before 128 reports
+        // boxes inside a CSS-zoomed element in unzoomed pixels.
+        val article = "document.documentElement.scrollHeight"
         val toolbarBefore = Reader.js(scenario, toolbar)
         val buttonBefore = Reader.js(scenario, button)
         val articleBefore = (Reader.js(scenario, article) as Number).toDouble()
