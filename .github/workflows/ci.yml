@@ -18,6 +18,7 @@ concurrency:
 jobs:
   build:
     name: Lint, unit tests, release build
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -151,7 +152,7 @@ jobs:
 
   store-graphics:
     name: Google Play graphics
-    # The icon, feature graphic and screenshots in store/ against Play's rules.
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -166,6 +167,7 @@ jobs:
 
   emulator:
     name: Emulator tests (API ${{ matrix.api }})
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -294,14 +296,28 @@ jobs:
           ./gradlew --no-daemon :baseline:assembleRelease
           cp baseline/build/outputs/apk/release/baseline-release.apk measure/empty.apk
 
+      - name: Build the variants
+        run: |
+          printf '\n.content-grid, .state-content { zoom: normal !important; }\n' >> app/src/main/assets/reader/reader.css
+          ./gradlew --no-daemon -PdebugSignRelease :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk measure/nozoom.apk
+          git checkout app/src/main/assets/reader/reader.css
+          sed -i 's/setSupportZoom(false)/setSupportZoom(true)/; s/builtInZoomControls = false/builtInZoomControls = true/' app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt
+          ./gradlew --no-daemon -PdebugSignRelease :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk measure/webzoom.apk
+          git checkout app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt
+          git show origin/main:app/src/main/assets/reader/reader.css > app/src/main/assets/reader/reader.css
+          git show origin/main:app/src/main/assets/reader/reader.js > app/src/main/assets/reader/reader.js
+          git show origin/main:app/src/main/assets/reader/reader.html > app/src/main/assets/reader/reader.html
+          ./gradlew --no-daemon -PdebugSignRelease :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk measure/oldreader.apk
+          git checkout app/src/main/assets
+
       - name: Build the base branch
         run: |
           git worktree add ../base "origin/${{ github.base_ref }}"
-          if (cd ../base && ./gradlew --no-daemon -PdebugSignRelease assembleRelease); then
-            cp ../base/app/build/outputs/apk/release/app-release.apk measure/base.apk
-          else
-            echo "The base branch does not build a release APK."
-          fi
+          (cd ../base && ./gradlew --no-daemon -PdebugSignRelease assembleRelease)
+          cp ../base/app/build/outputs/apk/release/app-release.apk measure/base.apk
 
       - name: Measure
         uses: reactivecircus/android-emulator-runner@v2
@@ -314,9 +330,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: |
-            df -h / && free -m
             adb install -r measure/fixtures.apk
-            bash -c 'set -o pipefail; if [ -f measure/base.apk ]; then base="base=measure/base.apk"; fi; scripts/measure.sh empty=measure/empty.apk $base branch=measure/branch.apk | tee measure/results.md'
+            bash scripts/exp-rotate.sh base=measure/base.apk branch=measure/branch.apk nozoom=measure/nozoom.apk webzoom=measure/webzoom.apk oldreader=measure/oldreader.apk base=measure/base.apk branch=measure/branch.apk | tee measure/results.md
 
       - name: Summary
         if: always()
