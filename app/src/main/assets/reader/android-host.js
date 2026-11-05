@@ -73,9 +73,11 @@
     }, true);
   });
 
-  // Work started by the user less than a second ago, else nothing.
+  // Work started by the user less than five seconds ago, else nothing. The
+  // page can be busy for over a second between the key and the change on a
+  // large document, as when it lays the document out again.
   function inputStart() {
-    return performance.now() - lastInput < 1000 ? lastInput : 0;
+    return performance.now() - lastInput < 5000 ? lastInput : 0;
   }
 
   // Reports once diagrams are drawn and two more frames have been produced.
@@ -110,14 +112,17 @@
       // A pinch while a figure is expanded zooms the figure, as + and - do.
       pressKey(data.direction > 0 ? "+" : "-");
     } else if (window.LeanMarkHost) {
+      // Read before the page handles the message: a zoom lays the whole
+      // document out again before receive returns.
       var start = performance.now();
+      var userStart = inputStart();
       window.LeanMarkHost.receive(data);
       if (data && data.type === "host") {
         nameTheSettingsButton();
       } else if (data && data.type === "document") {
         timeUntilDrawn("render", start);
       } else if (data && data.type === "zoom") {
-        timeUntilDrawn("zoom", inputStart());
+        timeUntilDrawn("zoom", userStart);
       }
     }
   }
