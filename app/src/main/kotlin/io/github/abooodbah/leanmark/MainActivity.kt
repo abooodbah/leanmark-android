@@ -72,8 +72,11 @@ class MainActivity : Activity() {
     private sealed interface Shown {
         data object Empty : Shown
 
-        /** [fields] is dropped once the page has it; the page keeps the document. */
-        class Document(val name: String, val path: String, val bytes: Long, var fields: String?) : Shown
+        /**
+         * [fields] is the rendered document as UTF-8, dropped once the page has
+         * it; the page keeps the document.
+         */
+        class Document(val name: String, val path: String, val bytes: Long, var fields: ByteArray?) : Shown
 
         class Failed(val name: String, val message: String) : Shown
     }
@@ -244,7 +247,7 @@ class MainActivity : Activity() {
         return try {
             val bytes = readBytes(next)
             phase("file read")
-            val fields = String(MarkdownCore.renderFields(bytes), Charsets.UTF_8)
+            val fields = MarkdownCore.renderFields(bytes)
             phase("rendered")
             val path = when (next) {
                 is Source.FromUri -> next.uri.toString()

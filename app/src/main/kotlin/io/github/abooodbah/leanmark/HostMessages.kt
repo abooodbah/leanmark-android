@@ -15,11 +15,22 @@ object HostMessages {
         """{"type":"error","theme":${Json.quote(theme)},"fileName":${Json.quote(fileName)},""" +
             """"path":${Json.quote(fileName)},"message":${Json.quote(message)}}"""
 
-    /** [renderedFields] is the output of [MarkdownCore.renderFields]. */
-    fun document(theme: String, fileName: String, path: String, sourceBytes: Long, renderedFields: String) =
-        """{"type":"document","theme":${Json.quote(theme)},"tabId":0,""" +
-            """"fileName":${Json.quote(fileName)},"path":${Json.quote(path)},""" +
-            """"sourceBytes":$sourceBytes,$renderedFields}"""
+    /**
+     * [renderedFields] is the output of [MarkdownCore.renderFields], UTF-8. The
+     * message is put together as bytes and decoded once, so the document is
+     * not held as text twice.
+     */
+    fun document(theme: String, fileName: String, path: String, sourceBytes: Long, renderedFields: ByteArray): String {
+        val head = (
+            """{"type":"document","theme":${Json.quote(theme)},"tabId":0,""" +
+                """"fileName":${Json.quote(fileName)},"path":${Json.quote(path)},"sourceBytes":$sourceBytes,"""
+            ).toByteArray(Charsets.UTF_8)
+        val message = ByteArray(head.size + renderedFields.size + 1)
+        System.arraycopy(head, 0, message, 0, head.size)
+        System.arraycopy(renderedFields, 0, message, head.size, renderedFields.size)
+        message[message.size - 1] = '}'.code.toByte()
+        return String(message, Charsets.UTF_8)
+    }
 
     fun status(message: String, tone: String = "info") =
         """{"type":"status","tone":${Json.quote(tone)},"message":${Json.quote(message)}}"""
