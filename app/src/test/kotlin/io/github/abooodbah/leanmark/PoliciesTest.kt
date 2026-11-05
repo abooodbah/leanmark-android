@@ -38,6 +38,45 @@ class PoliciesTest {
     }
 
     @Test
+    fun aDeclaredSizeIsReadIntoOneArrayWithoutACopy() {
+        // 8 MiB with its size known, as most providers report it. A growing
+        // buffer and a copy of it would allocate about twice the file.
+        val size = 8 * 1024 * 1024
+        val bytes = ByteArray(size) { (it % 251).toByte() }
+        DocumentReader.readLimited(ByteArrayInputStream(bytes), sizeHint = size.toLong()) // warm up
+        val before = allocatedBytes()
+        val read = DocumentReader.readLimited(ByteArrayInputStream(bytes), sizeHint = size.toLong())
+        val allocated = allocatedBytes() - before
+        assertArrayEquals(bytes, read)
+        assertTrue("allocated $allocated bytes for a $size-byte file", allocated < size * 1.25)
+    }
+
+    /**
+     * Bytes this thread has allocated, from the JVM that runs the tests. The
+     * management classes are not in android.jar, so they are reached by name.
+     */
+    private fun allocatedBytes(): Long {
+        val threads = Class.forName("java.lang.management.ManagementFactory").getMethod("getThreadMXBean").invoke(null)
+        val allocated = Class.forName("com.sun.management.ThreadMXBean")
+            .getMethod("getThreadAllocatedBytes", Long::class.javaPrimitiveType)
+        return allocated.invoke(threads, Thread.currentThread().id) as Long
+    }
+
+    @Test
+    fun aStreamShorterOrLongerThanItsDeclaredSizeIsStillReadWhole() {
+        val bytes = ByteArray(5000) { (it % 251).toByte() }
+        assertArrayEquals(bytes, DocumentReader.readLimited(ByteArrayInputStream(bytes), sizeHint = 6000))
+        assertArrayEquals(bytes, DocumentReader.readLimited(ByteArrayInputStream(bytes), sizeHint = 4000))
+        assertArrayEquals(bytes, DocumentReader.readLimited(ByteArrayInputStream(bytes), limit = 5000, sizeHint = 4999))
+        try {
+            DocumentReader.readLimited(ByteArrayInputStream(bytes), limit = 4999, sizeHint = 4000)
+            fail("expected TooLargeException")
+        } catch (expected: DocumentReader.TooLargeException) {
+            assertEquals(DocumentReader.TOO_LARGE, expected.message)
+        }
+    }
+
+    @Test
     fun refusesOneByteOverTheLimit() {
         try {
             DocumentReader.readLimited(ByteArrayInputStream(ByteArray(1001)), limit = 1000)
