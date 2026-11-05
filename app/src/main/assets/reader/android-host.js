@@ -37,13 +37,24 @@
     })
   });
 
-  // The back gesture closes an open figure viewer, the way Escape does.
-  function closeViewer() {
+  function pressKey(key) {
     document.dispatchEvent(new KeyboardEvent("keydown", {
-      key: "Escape",
+      key: key,
       bubbles: true,
       cancelable: true
     }));
+  }
+
+  // The back gesture closes an open figure viewer, the way Escape does, or
+  // else the settings sheet.
+  function goBack() {
+    var viewer = document.getElementById("figureViewer");
+    var close = document.getElementById("settingsClose");
+    if (viewer && !viewer.hidden) {
+      pressKey("Escape");
+    } else if (close && !document.getElementById("settingsPanel").hidden) {
+      close.click();
+    }
   }
 
   // Timings for the budgets job (scripts/measure.sh): how long the page takes
@@ -94,11 +105,16 @@
       return;
     }
     if (data && data.type === "android-back") {
-      closeViewer();
+      goBack();
+    } else if (data && data.type === "android-viewer-zoom") {
+      // A pinch while a figure is expanded zooms the figure, as + and - do.
+      pressKey(data.direction > 0 ? "+" : "-");
     } else if (window.LeanMarkHost) {
       var start = performance.now();
       window.LeanMarkHost.receive(data);
-      if (data && data.type === "document") {
+      if (data && data.type === "host") {
+        nameTheSettingsButton();
+      } else if (data && data.type === "document") {
         timeUntilDrawn("render", start);
       } else if (data && data.type === "zoom") {
         timeUntilDrawn("zoom", inputStart());
@@ -177,13 +193,32 @@
     }
   });
 
+  // The settings panel lists keyboard shortcuts on the desktop. Phones have
+  // no keyboard, so the Android panel holds only theme, text width and zoom,
+  // and the button says so. A hardware keyboard's shortcuts still work.
+  function nameTheSettingsButton() {
+    var button = document.getElementById("settingsButton");
+    if (button) {
+      button.title = "Settings";
+      button.setAttribute("aria-label", "Settings");
+    }
+  }
+  document.addEventListener("DOMContentLoaded", nameTheSettingsButton);
+
   // Below 560 px the desktop stylesheet hides the file name but keeps the
   // find field at its natural width and an empty 52 px match count, so the
   // buttons ran past the right edge of a phone. These rules give the find
   // field the room that is left, and keep every control in one row on
-  // screen down to 320 px. They apply only at phone widths.
+  // screen down to 320 px: the theme button shows only its dot, which names
+  // the theme for screen readers through the button's label.
+  //
+  // On a phone the settings panel becomes a sheet at the bottom of the
+  // screen instead of a full-height panel that covers the document, and the
+  // document keeps its width behind it. Wider screens keep the desktop panel
+  // beside the document.
   var phoneStyle = document.createElement("style");
   phoneStyle.textContent =
+    ".settings-panel > h3.settings-label, #shortcutList { display: none; }" +
     "@media (max-width: 560px) {" +
     " .topbar { padding-right: 12px; padding-left: 12px; }" +
     " .identity { display: none; }" +
@@ -191,18 +226,40 @@
     " .search-field { flex: 1 1 0; min-width: 96px; }" +
     " #findCount:empty { min-width: 0; padding-right: 0; }" +
     " .toolbar .button { flex: 0 0 auto; padding-right: 10px; padding-left: 10px; }" +
+    " .toolbar #themeButton { width: 40px; padding: 0; gap: 0; }" +
+    " #themeLabel { display: none; }" +
+    " .theme-button .theme-swatch { width: 14px; height: 14px; }" +
+    " .settings-panel { top: auto; right: 0; bottom: 0; left: 0; width: auto;" +
+    "  max-height: 75vh; padding-top: 20px; border-top: 1px solid var(--border);" +
+    "  border-left: 0; border-radius: 16px 16px 0 0;" +
+    "  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2); }" +
+    " .settings-panel::before { content: ''; position: absolute; top: 8px; left: 50%;" +
+    "  width: 32px; height: 4px; margin-left: -16px; border-radius: 2px;" +
+    "  background: var(--border); }" +
+    " .settings-panel fieldset.settings-group { display: flex; flex-wrap: wrap; gap: 0 20px; }" +
+    " .settings-panel .settings-group legend { width: 100%; }" +
+    " .settings-panel .settings-choice { min-height: 44px; }" +
+    " :root[data-settings-open] .content-grid," +
+    " :root[data-settings-open] .state-content { margin-right: 0; }" +
+    "}" +
+    "@media (max-width: 360px) {" +
+    " .topbar { padding-right: 8px; padding-left: 8px; }" +
     "}";
   document.head.appendChild(phoneStyle);
 
-  // The app needs to know when the figure viewer is open, so that back closes
-  // it instead of leaving the app.
-  document.addEventListener("DOMContentLoaded", function () {
-    var viewer = document.getElementById("figureViewer");
-    if (!viewer) {
+  // The app needs to know when the figure viewer or the settings sheet is
+  // open, so that back closes it instead of leaving the app.
+  function reportOpen(id, name) {
+    var element = document.getElementById(id);
+    if (!element) {
       return;
     }
     new MutationObserver(function () {
-      send(viewer.hidden ? "viewer|closed" : "viewer|open");
-    }).observe(viewer, { attributes: true, attributeFilter: ["hidden"] });
+      send(name + (element.hidden ? "|closed" : "|open"));
+    }).observe(element, { attributes: true, attributeFilter: ["hidden"] });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    reportOpen("figureViewer", "viewer");
+    reportOpen("settingsPanel", "settings");
   });
 }());

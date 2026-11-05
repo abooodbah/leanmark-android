@@ -215,7 +215,7 @@ phase_drawn() {
 
 # Page work on the open document: theme, zoom, rotation, a dark mode switch
 # and find. The page times each from the key to the result on screen.
-declare -A THEME_MS=() ZOOM_MS=() RESIZE_MS=() NIGHT_MS=() FIND_MS=()
+declare -A THEME_MS=() ZOOM_MS=() WIDTH_MS=() RESIZE_MS=() NIGHT_MS=() FIND_MS=()
 page_work() {
   local label=$1 before value
   adb logcat -c
@@ -225,6 +225,9 @@ page_work() {
   # Two steps in and two out, back to the saved level.
   for key in EQUALS EQUALS MINUS MINUS; do press zoom 30 KEYCODE_CTRL_LEFT "KEYCODE_$key"; done
   ZOOM_MS[$label]=$(page_times zoom 4 0)
+  # Ctrl+Shift+L three times: Wide, Full and back to Narrow (desktop 0.6.0).
+  for _ in 1 2 3; do press width 15 KEYCODE_CTRL_LEFT KEYCODE_SHIFT_LEFT KEYCODE_L; done
+  WIDTH_MS[$label]=$(page_times width 3 0)
   # Landscape and back, with auto-rotate off.
   adb shell settings put system accelerometer_rotation 0
   for rotation in 1 0; do
@@ -250,7 +253,7 @@ page_work() {
   adb shell input text bullet
   FIND_MS[$label]=$(page_times find 1 30)
   adb shell input keyevent KEYCODE_ESCAPE
-  log "$label page work: theme $(tr '\n' ' ' <<<"${THEME_MS[$label]}")ms; zoom $(tr '\n' ' ' <<<"${ZOOM_MS[$label]}")ms; resize $(tr '\n' ' ' <<<"${RESIZE_MS[$label]}")ms; dark mode $(tr '\n' ' ' <<<"${NIGHT_MS[$label]}")ms; find $(tr '\n' ' ' <<<"${FIND_MS[$label]}")ms"
+  log "$label page work: theme $(tr '\n' ' ' <<<"${THEME_MS[$label]}")ms; zoom $(tr '\n' ' ' <<<"${ZOOM_MS[$label]}")ms; width $(tr '\n' ' ' <<<"${WIDTH_MS[$label]}")ms; resize $(tr '\n' ' ' <<<"${RESIZE_MS[$label]}")ms; dark mode $(tr '\n' ' ' <<<"${NIGHT_MS[$label]}")ms; find $(tr '\n' ' ' <<<"${FIND_MS[$label]}")ms"
 }
 
 # Memory with the small file, to tell the WebView's own cost from the document's.
@@ -380,7 +383,7 @@ row() {
   row "Janky frames over 10 swipes (software GPU, not a budget check)" "${jank[@]}"
   row "90th percentile frame time (software GPU, not a budget check)" "${p90[@]}"
   if [ "$WEBVIEW" = yes ]; then
-    small_allocated=(); allocated=(); java=(); native=(); theme=(); zoom=(); resize=(); night=(); find=()
+    small_allocated=(); allocated=(); java=(); native=(); theme=(); zoom=(); width=(); resize=(); night=(); find=()
     for label in "${LABELS[@]}"; do
       small_allocated+=("${SMALL_ALLOCATED[$label]:-NA}")
       allocated+=("$(median <<<"${ALLOCATED[$label]:-}")")
@@ -388,6 +391,7 @@ row() {
       native+=("$(median <<<"${NATIVE_HEAP[$label]:-}")")
       theme+=("$(median <<<"${THEME_MS[$label]:-}")")
       zoom+=("$(median <<<"${ZOOM_MS[$label]:-}")")
+      width+=("$(median <<<"${WIDTH_MS[$label]:-}")")
       resize+=("$(median <<<"${RESIZE_MS[$label]:-}")")
       night+=("$(median <<<"${NIGHT_MS[$label]:-}")")
       find+=("$(median <<<"${FIND_MS[$label]:-}")")
@@ -398,6 +402,7 @@ row() {
     row "Native heap after $LARGE_NAME (KB PSS, median of 3)" "${native[@]}"
     row "Theme switch on $LARGE_NAME, key to drawn (ms, median of 5)" "${theme[@]}"
     row "Zoom step on $LARGE_NAME, key to drawn (ms, median of 4)" "${zoom[@]}"
+    row "Text width step on $LARGE_NAME, key to drawn (ms, median of 3; phone held upright)" "${width[@]}"
     row "Find on $LARGE_NAME, last key to match count, with the page's 120 ms pause (ms)" "${find[@]}"
     row "Rotation on $LARGE_NAME, resize to drawn (ms, median)" "${resize[@]}"
     row "Dark mode switch, activity recreated to $LARGE_NAME drawn (ms, median of 2)" "${night[@]}"
