@@ -35,10 +35,20 @@ Updated with every merge. The next session starts here.
 - Page work timed in the budgets job (PR #16): theme, zoom, find, rotation,
   dark mode and the steps of opening a file, with Java allocations. Mutation
   entries can name the test classes to run.
+- Fewer copies when a file opens: a file of known size is read straight
+  into its array (PR #21) and the document message is built once from the
+  rendered bytes (PR #22). Java allocations up to large.md on screen went
+  from 13,461 to 12,350 KB (#21, run 41993382698) and from 13,823 to
+  10,111 KB (#22, run 41993441975).
 
 ## In progress
 
 - Version 0.2.0. The plan is below.
+- PR #19, the desktop 0.6.0 port, is green but not merged: rotating
+  large.md is about four times slower with the 0.6.0 reader (137 to 221 ms
+  against 515 to 686 ms, bisect run 41988918132). The cause is in the
+  desktop reader, which desktop LeanMark is fixing. The outline sheet and
+  the highlight follow it.
 
 ## Plan for 0.2.0
 
@@ -131,7 +141,7 @@ Findings. Numbers are from run 41981714168 (PR #16) unless a PR is named.
 | WebView renderer memory | DOM of a 1 MiB document plus Mermaid | 314,661 KB PSS after large.md | Desktop reader code | No change |
 | Open: port posted in `onPageFinished` | The document waits for the page's load event | Load event 15 ms after DOMContentLoaded (292 and 277 ms) | Posting the port earlier would save at most 15 ms | No change |
 | Open: provider queries and file read (`displayName`, `querySize`, `stampOf`) | Four content provider queries per open | File read and parsed 65 to 66 ms after creation for simple.md, 60 ms for large.md, about 400 ms before the page is ready | They run on the worker while the WebView starts, so they do not delay the first page | No change |
-| Open: Java copies (`readLimited`, `load`, `HostMessages.document`) | A second copy of the file, and the rendered HTML held twice as UTF-16 text until it is sent | 13,941 KB allocated by the time large.md is drawn; Java heap 1,328 KB PSS afterwards | One copy fewer of each. Transient only; it matters for files near the 32 MiB limit | For the maintainer to decide |
+| Open: Java copies (`readLimited`, `load`, `HostMessages.document`) | A second copy of the file, and the rendered HTML held twice as UTF-16 text until it is sent | Java allocations up to the first draw: 13,634 KB for large.md against 3,937 KB for simple.md (run 41983948818); Java heap 1,328 KB PSS afterwards | One copy fewer of each | Fixed in #21 (13,461 to 12,350 KB) and #22 (13,823 to 10,111 KB) |
 | Find (`reader.js`) | Search over the whole article after a 120 ms pause | 323 ms on large.md, last key to count | Desktop reader code | No change |
 | Rotation | Handled without a new activity | 167 ms from resize to drawn on large.md | None | No change |
 | Scrolling | Reading progress once per frame (desktop 0.4.0) | 81% janky frames over 10 swipes on base and branch alike (software GPU) | Needs a phone with a GPU to judge | Phone test |
