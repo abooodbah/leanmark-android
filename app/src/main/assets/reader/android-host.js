@@ -46,6 +46,46 @@
     }));
   }
 
+  // Timings for the budgets job (scripts/measure.sh): how long the page takes
+  // for its own work, from the user's key or tap, or from the app's message,
+  // until the result is on screen. Only the durations leave the page; the
+  // app logs them under LeanMarkTiming.
+  var lastInput = -Infinity;
+  var findStart = 0;
+
+  ["keydown", "click", "change", "input"].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      lastInput = performance.now();
+      if (type === "input" && event.target && event.target.id === "findInput") {
+        findStart = lastInput;
+      }
+    }, true);
+  });
+
+  // Work started by the user less than a second ago, else nothing.
+  function inputStart() {
+    return performance.now() - lastInput < 1000 ? lastInput : 0;
+  }
+
+  // Reports once diagrams are drawn and two more frames have been produced.
+  function timeUntilDrawn(name, start) {
+    if (!start) {
+      return;
+    }
+    function check() {
+      if (document.documentElement.dataset.renderState === "diagrams") {
+        requestAnimationFrame(check);
+        return;
+      }
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          send("timing|" + name + "|" + Math.round(performance.now() - start));
+        });
+      });
+    }
+    requestAnimationFrame(check);
+  }
+
   function receive(event) {
     var data;
     try {
@@ -56,9 +96,50 @@
     if (data && data.type === "android-back") {
       closeViewer();
     } else if (window.LeanMarkHost) {
+      var start = performance.now();
       window.LeanMarkHost.receive(data);
+      if (data && data.type === "document") {
+        timeUntilDrawn("render", start);
+      } else if (data && data.type === "zoom") {
+        timeUntilDrawn("zoom", inputStart());
+      }
     }
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    send("timing|page-dom|" + Math.round(performance.now()));
+    // The app confirms a theme by sending it back, which sets the same value
+    // again; only real changes are timed.
+    new MutationObserver(function (records) {
+      records.forEach(function (record) {
+        var name = record.attributeName === "data-theme" ? "theme" : "width";
+        if (document.documentElement.getAttribute(record.attributeName) !== record.oldValue) {
+          timeUntilDrawn(name, inputStart());
+        }
+      });
+    }).observe(document.documentElement, {
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ["data-theme", "data-width"]
+    });
+    var count = document.getElementById("findCount");
+    if (count) {
+      new MutationObserver(function () {
+        if (findStart) {
+          timeUntilDrawn("find", findStart);
+          findStart = 0;
+        }
+      }).observe(count, { childList: true, characterData: true, subtree: true });
+    }
+  });
+
+  window.addEventListener("load", function () {
+    send("timing|page-load|" + Math.round(performance.now()));
+  });
+
+  window.addEventListener("resize", function () {
+    timeUntilDrawn("resize", performance.now());
+  });
 
   // The app posts exactly one port, right after the page loads. The page has
   // no frames and runs no document scripts, so nothing else can post here.

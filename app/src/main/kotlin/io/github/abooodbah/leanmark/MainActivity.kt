@@ -13,6 +13,7 @@ import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Debug
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -53,14 +54,15 @@ import kotlin.math.roundToInt
  */
 class MainActivity : Activity() {
     // Milliseconds from creation to each step of the first document, for
-    // scripts/measure.sh. Each step is logged once per activity.
+    // scripts/measure.sh. Each step is logged once per activity. The worker
+    // thread logs the steps of reading and rendering the file.
     private val createdAt = SystemClock.uptimeMillis()
     private val phases = HashSet<String>()
 
     private fun phase(name: String) {
-        if (phases.add(name)) Log.i("LeanMarkTiming", "phase $name ${SystemClock.uptimeMillis() - createdAt} ms")
+        val first = synchronized(phases) { phases.add(name) }
+        if (first) Log.i(TIMING, "phase $name ${SystemClock.uptimeMillis() - createdAt} ms")
     }
-
 
     private sealed interface Source {
         data class FromUri(val uri: Uri) : Source
@@ -241,7 +243,9 @@ class MainActivity : Activity() {
         val name = displayName(next)
         return try {
             val bytes = readBytes(next)
+            phase("file read")
             val fields = String(MarkdownCore.renderFields(bytes), Charsets.UTF_8)
+            phase("rendered")
             val path = when (next) {
                 is Source.FromUri -> next.uri.toString()
                 is Source.FromText -> name
@@ -343,6 +347,9 @@ class MainActivity : Activity() {
         view.webViewClient = ReaderClient()
         if (isDebuggable()) view.webChromeClient = ConsoleLog
         root.addView(view, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        // Key presses go to the focused view. With focus here, a hardware
+        // keyboard's shortcuts reach the page without a tap first.
+        view.requestFocus()
         webView = view
         portPosted = false
         readerReady = false
@@ -450,6 +457,7 @@ class MainActivity : Activity() {
             is ReaderCommand.CopySource -> copySource(command)
             is ReaderCommand.Viewer -> setViewerOpen(command.open)
             is ReaderCommand.Rendered -> if (awaitingFirstRender && !loading) reportDrawn()
+            is ReaderCommand.Timing -> Log.i(TIMING, "page ${command.name} ${command.milliseconds} ms")
         }
     }
 
@@ -480,6 +488,11 @@ class MainActivity : Activity() {
             object : WebView.VisualStateCallback() {
                 override fun onComplete(requestId: Long) {
                     phase("drawn")
+                    // Everything the app's Java side allocated since the process
+                    // started, garbage included: what opening the file cost.
+                    Debug.getRuntimeStat("art.gc.bytes-allocated")?.toLongOrNull()?.let {
+                        Log.i(TIMING, "allocated ${it / 1024} KB by drawn")
+                    }
                     try {
                         reportFullyDrawn()
                     } catch (error: SecurityException) {
@@ -688,6 +701,7 @@ class MainActivity : Activity() {
     }
 
     private companion object {
+        const val TIMING = "LeanMarkTiming"
         const val PREFERENCES = "reader"
         const val KEY_THEME = "theme"
         const val KEY_ZOOM = "zoom"

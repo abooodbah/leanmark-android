@@ -5,8 +5,9 @@ that should notice, records the first failing test, and restores the file.
     python3 scripts/mutations.py mutations/reader.json device   # needs an emulator
 
 Each entry names a file, an exact text to replace (it must occur once), the
-replacement, and which suite should catch it ("jvm" or "device"). The result
-is a Markdown table on standard output."""
+replacement, and which suite should catch it ("jvm" or "device"). An entry
+may also name test classes ("tests": ["ThemeTest"]) to run only those, which
+keeps device runs short. The result is a Markdown table on standard output."""
 
 import json
 import pathlib
@@ -15,6 +16,7 @@ import sys
 import xml.etree.ElementTree as ElementTree
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+PACKAGE = "io.github.abooodbah.leanmark"
 SUITES = {
     "jvm": (["./gradlew", "--no-daemon", "-q", "testDebugUnitTest", "--rerun-tasks"],
             "app/build/test-results/testDebugUnitTest"),
@@ -47,6 +49,11 @@ def main():
             print(f"| {entry['name']} | {entry['file']} | pattern not found once | - |", flush=True)
             continue
         command, results = SUITES[wanted]
+        classes = [f"{PACKAGE}.{name}" for name in entry.get("tests", [])]
+        if classes and wanted == "device":
+            command = command + ["-Pandroid.testInstrumentationRunnerArguments.class=" + ",".join(classes)]
+        elif classes:
+            command = command + [part for name in classes for part in ("--tests", name)]
         subprocess.run(["rm", "-rf", str(ROOT / results)])
         path.write_text(original.replace(entry["old"], entry["new"]))
         try:

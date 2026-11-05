@@ -14,8 +14,13 @@ sealed interface ReaderCommand {
     /** The page reached a render state: "ready", or "diagrams" while Mermaid runs. */
     data class Rendered(val state: String) : ReaderCommand
 
+    /** How long a piece of page work took, from android-host.js, for scripts/measure.sh. */
+    data class Timing(val name: String, val milliseconds: Long) : ReaderCommand
+
     companion object {
         private const val MAX_LINK = 8192
+        private const val MAX_TIMING_MS = 600_000L
+        private val timingName = Regex("[a-z][a-z-]{0,23}")
 
         fun parse(message: String): ReaderCommand? {
             when (message) {
@@ -42,6 +47,7 @@ sealed interface ReaderCommand {
                     if (rest.isEmpty() || rest.length > MAX_LINK) null else OpenLink(rest)
                 "copy-source" -> parseCopy(rest)
                 "render" -> if (rest == "ready" || rest == "diagrams") Rendered(rest) else null
+                "timing" -> parseTiming(rest)
                 else -> null
             }
         }
@@ -59,6 +65,15 @@ sealed interface ReaderCommand {
         fun themeName(name: String?): String {
             val lower = name.orEmpty().lowercase(java.util.Locale.ROOT)
             return if (lower in THEMES) lower else "system"
+        }
+
+        // name|milliseconds, where the name is a short lowercase word.
+        private fun parseTiming(arguments: String): ReaderCommand? {
+            val name = arguments.substringBefore('|')
+            val value = arguments.substringAfter('|', "")
+            if (!timingName.matches(name) || value.isEmpty() || !value.all { it in '0'..'9' }) return null
+            val milliseconds = value.takeIf { it.length <= 7 }?.toLong()?.takeIf { it <= MAX_TIMING_MS } ?: return null
+            return Timing(name, milliseconds)
         }
 
         private fun parseCopy(arguments: String): ReaderCommand? {
