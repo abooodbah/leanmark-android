@@ -28,6 +28,13 @@ Updated with every merge. The next session starts here.
   and API 34 (WebView 113), budgets against the base branch and an empty
   app, APK contents, the arm64 download size and a native-library
   breakdown. Mutation check: `mutations.yml` with `mutations/*.json`.
+- 0.2.0 plan (PR #15), below.
+- Smaller APK: the native library exports only its JNI entry points (PR
+  #17, APK 4,103,101 to 2,253,125 bytes) and the APK carries no Kotlin
+  metadata (PR #18, 13,728 bytes less). CI checks both.
+- Page work timed in the budgets job (PR #16): theme, zoom, find, rotation,
+  dark mode and the steps of opening a file, with Java allocations. Mutation
+  entries can name the test classes to run.
 
 ## In progress
 
@@ -106,24 +113,33 @@ Method: release builds in the budgets job on an API 34 emulator (x86_64,
 4 cores, SwiftShader, no GPU), main and the branch measured the same way in
 turns, with an empty app's start time subtracted. The emulator has no GPU,
 so jank and start times there are not the phone budget; they compare builds.
+Since PR #16 the job also times page work on large.md (1 MiB, 11 Mermaid
+diagrams) with keys as from a hardware keyboard: the page measures from the
+key to the result on screen, and the app logs it under `LeanMarkTiming`.
+Sizes come from the build job.
 
-Candidates found by reading the code. The numbers come from the measuring
-pull request and replace this list.
+Findings. Numbers are from run 41981714168 (PR #16) unless a PR is named.
 
-| Place | What it costs |
-| --- | --- |
-| Open: `displayName`, `querySize`, `stampOf` | Four content provider queries per open, each a call into the sending app. |
-| Open: `DocumentReader.readLimited` | A second copy of the file when its size is known (`ByteArrayOutputStream.toByteArray`). |
-| Open: `load` and `HostMessages.document` | The rendered HTML is held twice as UTF-16 text: the fields string and the message. |
-| Open: port posted in `onPageFinished` | The document waits for the page's load event, including fonts, not only for the reader script. |
-| Zoom: `WebSettings.textZoom` | Enlarges the toolbar too and lays the whole page out again. Replaced in step 2. |
-| Theme switch | The page draws every Mermaid diagram again in the new colours. Desktop reader code. |
-| Rotation | Handled without recreating the activity. To be measured. |
-| Dark mode or font size change | Recreates the activity: the file is read and rendered again. |
-| Native library | 1,113,648 bytes on arm64, about half of it the statically linked C++ runtime; its symbols are exported, so the linker keeps them. |
-| APK | Kotlin metadata files (`kotlin/*.kotlin_builtins`, `kotlin-tooling-metadata.json`) that nothing reads. |
-| Dead code | `MarkdownCore.normalizeZoom` is never called, so a bad saved zoom is used as is. The desktop file helpers in the core are compiled in. |
-| Dependencies | The app has none besides the Kotlin standard library, which R8 shrinks. Test-only: JUnit, org.json, AndroidX Test. |
+| Place | What it costs | Measured | Proposed fix | Status |
+| --- | --- | ---: | --- | --- |
+| Native library (`CMakeLists.txt`) | The C++ runtime exported 1,975 symbols, so the linker kept all of its code | APK 4,103,101 bytes; arm64 `.so` 1,113,648 bytes | Export only the JNI entry points (version script) | Fixed in #17: APK 2,253,125 bytes, arm64 `.so` 411,128, arm64 download 1,497,097 to 1,294,523 |
+| APK (`build.gradle.kts`) | Kotlin metadata files nothing reads | 13,728 bytes | Leave them out of packaging | Fixed in #18 |
+| Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours | 5,228 ms on large.md (11 diagrams) | Desktop reader code. Desktop LeanMark plans to skip the redraw when a theme change keeps the diagram colours; it comes with the next reader update | For the desktop |
+| Zoom (`WebSettings.textZoom`) | Enlarges the toolbar too and lays the whole page out again | 786 ms per step on large.md | The reader zooms only the document (desktop 0.6.0) | Replaced in the 0.6.0 port; numbers there |
+| Dark mode switch (manifest `configChanges`) | Android recreates the activity: the file is read, parsed and drawn again | 1,245 ms to drawn on large.md, against 167 ms for a rotation | Handle `uiMode` in the activity. Needs a check on a phone that WebView's `prefers-color-scheme` follows without a new activity | For the maintainer to decide |
+| Opening large.md in the page | Mermaid draws 11 diagrams after the text is on screen | Text drawn 1,349 ms after creation; diagrams done 3,561 ms after the document arrives | Desktop reader code (Mermaid). The text is readable before the diagrams | No change |
+| WebView renderer memory | DOM of a 1 MiB document plus Mermaid | 314,661 KB PSS after large.md | Desktop reader code | No change |
+| Open: port posted in `onPageFinished` | The document waits for the page's load event | Load event 15 ms after DOMContentLoaded (292 and 277 ms) | Posting the port earlier would save at most 15 ms | No change |
+| Open: provider queries and file read (`displayName`, `querySize`, `stampOf`) | Four content provider queries per open | File read and parsed 65 to 66 ms after creation for simple.md, 60 ms for large.md, about 400 ms before the page is ready | They run on the worker while the WebView starts, so they do not delay the first page | No change |
+| Open: Java copies (`readLimited`, `load`, `HostMessages.document`) | A second copy of the file, and the rendered HTML held twice as UTF-16 text until it is sent | 13,941 KB allocated by the time large.md is drawn; Java heap 1,328 KB PSS afterwards | One copy fewer of each. Transient only; it matters for files near the 32 MiB limit | For the maintainer to decide |
+| Find (`reader.js`) | Search over the whole article after a 120 ms pause | 323 ms on large.md, last key to count | Desktop reader code | No change |
+| Rotation | Handled without a new activity | 167 ms from resize to drawn on large.md | None | No change |
+| Scrolling | Reading progress once per frame (desktop 0.4.0) | 81% janky frames over 10 swipes on base and branch alike (software GPU) | Needs a phone with a GPU to judge | Phone test |
+| Dead code | `MarkdownCore.normalizeZoom` was never called, so a bad saved zoom was used as is; the desktop file helpers in the core | The file helpers are no longer in the library after #17 | Use `normalizeZoom` for the saved zoom | Fixed in the 0.6.0 port |
+| Dependencies | None in the app besides the Kotlin standard library, which R8 shrinks to a 52,512-byte `classes.dex`. Test only: JUnit, org.json, AndroidX Test | | None | No change |
+
+"For the maintainer to decide" rows are proposals: they change behaviour or
+need a phone to verify, so they are not clear wins.
 
 ## Remaining
 
@@ -139,7 +155,8 @@ pull request and replace this list.
   next match. Mermaid needs WebView 94.
 - The WebView renderer uses about 310 to 325 MB after a 1 MiB document with
   11 Mermaid diagrams.
-- Half of the native library is the statically linked C++ runtime.
+- The statically linked C++ runtime is 129,778 of the arm64 library's
+  411,128 bytes; most of the rest is md4c and its entity table.
 - The emulator has no GPU, so start time and jank from CI are not the
   budget check, and in some runs the scrolling measure did not register
   frames at all.

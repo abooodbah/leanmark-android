@@ -9,7 +9,10 @@
 # emulator without a GPU even an empty app takes over a second. Builds take
 # turns, so drift in the emulator affects both alike. Every number comes from
 # am start -W, the "Fully drawn" line the app logs through reportFullyDrawn(),
-# dumpsys meminfo and dumpsys gfxinfo.
+# the app's own LeanMarkTiming lines, dumpsys meminfo and dumpsys gfxinfo.
+# Page work (theme, zoom, find, rotation) is driven with keys as from a
+# hardware keyboard, and timed by the page from the key to the result on
+# screen.
 set -euo pipefail
 
 PKG=io.github.abooodbah.leanmark
@@ -107,6 +110,15 @@ if [ -n "$EMPTY_APK" ]; then
   log "empty app: first frame $EMPTY_FIRST ms (median of $STARTS)"
 fi
 
+# The app's "phase NAME N ms" lines (ms from the activity's creation) and the
+# page's "page page-dom N ms" lines (ms from the page's navigation start), as
+# "name value" pairs with spaces in names turned into underscores.
+step_lines() {
+  adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" |
+    sed -n -e 's/^phase \(.*\) \([0-9][0-9]*\) ms$/\1|\2/p' -e 's/^page \(page-[a-z]*\|render\) \([0-9][0-9]*\) ms$/\1|\2/p' |
+    tr ' ' '_' | tr '|' ' '
+}
+
 declare -A FIRST_FRAME=() DRAWN=() PHASES=() PHASE_NAMES=()
 for round in $(seq 1 "$ROUNDS"); do
   for label in "${LABELS[@]}"; do
@@ -117,12 +129,11 @@ for round in $(seq 1 "$ROUNDS"); do
       total=$(open_document "$SMALL" "$SMALL_TYPE" | sed -n 's/^TotalTime: *//p')
       drawn=$(fully_drawn 10)
       log "round $round $label: first frame ${total:-NA} ms, drawn $drawn ms"
-      # The app's own "phase NAME N ms" lines, from creation to each step.
       while read -r name value; do
         [ -n "$name" ] || continue
         PHASES["$label|$name"]+="$value"$'\n'
         PHASE_NAMES["$name"]=1
-      done < <(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" | sed -n 's/^phase \(.*\) \([0-9][0-9]*\) ms$/\1 \2/p' | sed 's/ \([0-9][0-9]*\)$/|\1/' | tr ' ' '_' | tr '|' ' ')
+      done < <(step_lines)
       FIRST_FRAME[$label]+="${total:-NA}"$'\n'
       DRAWN[$label]+="$drawn"$'\n'
     done
@@ -163,14 +174,94 @@ renderer_count() {
   adb shell ps -A -o NAME | tr -d '\r' | grep -c sandboxed_process || true
 }
 
+# Java and native heap of the app process (PSS, KB), from the App Summary.
+heaps_of() {
+  adb shell dumpsys meminfo "$1" | tr -d '\r' |
+    awk '/^ *Java Heap:/ { java = $3 } /^ *Native Heap:/ { native = $3 } END { print (java ? java : "NA"), (native ? native : "NA") }'
+}
+
+# Prints the values of the app's "page NAME N ms" lines since the log was
+# cleared, once there are at least COUNT of them or LIMIT seconds have passed.
+page_times() {
+  local name=$1 count=$2 end=$((SECONDS + $3)) values
+  while true; do
+    values=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" | sed -n "s/^page $name \([0-9][0-9]*\) ms$/\1/p")
+    if [ "$(grep -c . <<<"$values" || true)" -ge "$count" ] || [ "$SECONDS" -ge "$end" ]; then break; fi
+    sleep 0.2
+  done
+  printf '%s\n' "$values"
+}
+
+# Presses a key combination, as on a hardware keyboard, and waits up to
+# LIMIT seconds for the page to time one more piece of work called NAME.
+press() {
+  local name=$1 limit=$2 before
+  shift 2
+  before=$(page_times "$name" 0 0 | grep -c . || true)
+  adb shell input keycombination "$@" >/dev/null 2>&1 || log "input keycombination $* failed"
+  page_times "$name" $((before + 1)) "$limit" >/dev/null
+}
+
+# The app's "phase drawn N ms" line of the newest activity, or NA.
+phase_drawn() {
+  local limit=$1 value
+  for _ in $(seq 1 $((limit * 5))); do
+    value=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" | sed -n 's/^phase drawn \([0-9][0-9]*\) ms$/\1/p' | tail -n 1)
+    if [ -n "$value" ]; then echo "$value"; return; fi
+    sleep 0.2
+  done
+  echo NA
+}
+
+# Page work on the open document: theme, zoom, rotation, a dark mode switch
+# and find. The page times each from the key to the result on screen.
+declare -A THEME_MS=() ZOOM_MS=() RESIZE_MS=() NIGHT_MS=() FIND_MS=()
+page_work() {
+  local label=$1 before value
+  adb logcat -c
+  # Ctrl+Shift+T five times: through all five themes and back to the first.
+  for _ in 1 2 3 4 5; do press theme 90 KEYCODE_CTRL_LEFT KEYCODE_SHIFT_LEFT KEYCODE_T; done
+  THEME_MS[$label]=$(page_times theme 5 0)
+  # Two steps in and two out, back to the saved level.
+  for key in EQUALS EQUALS MINUS MINUS; do press zoom 30 KEYCODE_CTRL_LEFT "KEYCODE_$key"; done
+  ZOOM_MS[$label]=$(page_times zoom 4 0)
+  # Landscape and back, with auto-rotate off.
+  adb shell settings put system accelerometer_rotation 0
+  for rotation in 1 0; do
+    before=$(page_times resize 0 0 | grep -c . || true)
+    adb shell settings put system user_rotation "$rotation"
+    page_times resize $((before + 1)) 30 >/dev/null
+    sleep 3
+  done
+  RESIZE_MS[$label]=$(page_times resize 1 0)
+  # Dark mode on and off. Android recreates the activity, which reads and
+  # draws the file again; the new activity logs its own steps.
+  for mode in yes no; do
+    adb logcat -c
+    adb shell cmd uimode night "$mode" >/dev/null
+    value=$(phase_drawn 90)
+    NIGHT_MS[$label]+="$value"$'\n'
+    sleep 3
+  done
+  # Find: Ctrl+F, then a word typed into the find field.
+  adb logcat -c
+  adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_F >/dev/null 2>&1 || log "input keycombination failed"
+  sleep 1
+  adb shell input text bullet
+  FIND_MS[$label]=$(page_times find 1 30)
+  adb shell input keyevent KEYCODE_ESCAPE
+  log "$label page work: theme $(tr '\n' ' ' <<<"${THEME_MS[$label]}")ms; zoom $(tr '\n' ' ' <<<"${ZOOM_MS[$label]}")ms; resize $(tr '\n' ' ' <<<"${RESIZE_MS[$label]}")ms; dark mode $(tr '\n' ' ' <<<"${NIGHT_MS[$label]}")ms; find $(tr '\n' ' ' <<<"${FIND_MS[$label]}")ms"
+}
+
 # Memory with the small file, to tell the WebView's own cost from the document's.
-declare -A SMALL_APP=() SMALL_RENDERER=()
+declare -A SMALL_APP=() SMALL_RENDERER=() SMALL_ALLOCATED=()
 for label in "${LABELS[@]}"; do
   install "$label"
   open_document "$SMALL" "$SMALL_TYPE" >/dev/null
   fully_drawn 30 >/dev/null
   sleep 5
   SMALL_APP[$label]=$(pss_of "$PKG")
+  SMALL_ALLOCATED[$label]=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" | sed -n 's/^allocated \([0-9][0-9]*\) KB by drawn$/\1/p' | head -n 1)
   SMALL_RENDERER[$label]=0
   if [ "$WEBVIEW" = yes ]; then SMALL_RENDERER[$label]=$(renderer_pss); fi
   log "$label small file: app ${SMALL_APP[$label]:-NA} KB, renderer ${SMALL_RENDERER[$label]} KB in $(renderer_count) renderer process(es)"
@@ -181,6 +272,7 @@ open_document "$LARGE" "$LARGE_TYPE" >/dev/null
 sleep 20
 
 declare -A APP_PSS=() RENDERER_PSS=() TOTAL_PSS=() LARGE_DRAWN=() INDEXED=() JANK=() FRAMES=() P90=()
+declare -A ALLOCATED=() JAVA_HEAP=() NATIVE_HEAP=() LARGE_PHASES=() LARGE_PHASE_NAMES=()
 for label in "${LABELS[@]}"; do
   install "$label"
   for run in 1 2 3; do
@@ -193,7 +285,17 @@ for label in "${LABELS[@]}"; do
     renderer=0
     if [ "$WEBVIEW" = yes ]; then renderer=$(renderer_pss); fi
     total=$(plus "${app:-NA}" "$renderer")
-    log "$label large run $run: drawn $drawn ms, indexed $indexed ms, app ${app:-NA} KB, renderer $renderer KB in $(renderer_count) process(es), total $total KB"
+    read -r java native < <(heaps_of "$PKG")
+    allocated=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" | sed -n 's/^allocated \([0-9][0-9]*\) KB by drawn$/\1/p' | head -n 1)
+    while read -r name value; do
+      [ -n "$name" ] || continue
+      LARGE_PHASES["$label|$name"]+="$value"$'\n'
+      LARGE_PHASE_NAMES["$name"]=1
+    done < <(step_lines)
+    log "$label large run $run: drawn $drawn ms, indexed $indexed ms, app ${app:-NA} KB (Java heap $java, native heap $native), renderer $renderer KB in $(renderer_count) process(es), total $total KB, Java allocated ${allocated:-NA} KB"
+    ALLOCATED[$label]+="${allocated:-NA}"$'\n'
+    JAVA_HEAP[$label]+="$java"$'\n'
+    NATIVE_HEAP[$label]+="$native"$'\n'
     LARGE_DRAWN[$label]+="$drawn"$'\n'
     INDEXED[$label]+="$indexed"$'\n'
     APP_PSS[$label]+="${app:-NA}"$'\n'
@@ -222,6 +324,7 @@ for label in "${LABELS[@]}"; do
   JANK[$label]=$(sed -n 's/^Janky frames: *//p' <<<"$gfx" | head -n 1)
   P90[$label]=$(sed -n 's/^90th percentile: *//p' <<<"$gfx" | head -n 1)
   log "$label scrolling: frames ${FRAMES[$label]:-NA}, janky ${JANK[$label]:-NA}, p90 ${P90[$label]:-NA}"
+  if [ "$WEBVIEW" = yes ]; then page_work "$label"; fi
 done
 
 row() {
@@ -276,19 +379,66 @@ row() {
   row "Frames over 10 swipes (software GPU, not a budget check)" "${frames[@]}"
   row "Janky frames over 10 swipes (software GPU, not a budget check)" "${jank[@]}"
   row "90th percentile frame time (software GPU, not a budget check)" "${p90[@]}"
+  if [ "$WEBVIEW" = yes ]; then
+    small_allocated=(); allocated=(); java=(); native=(); theme=(); zoom=(); resize=(); night=(); find=()
+    for label in "${LABELS[@]}"; do
+      small_allocated+=("${SMALL_ALLOCATED[$label]:-NA}")
+      allocated+=("$(median <<<"${ALLOCATED[$label]:-}")")
+      java+=("$(median <<<"${JAVA_HEAP[$label]:-}")")
+      native+=("$(median <<<"${NATIVE_HEAP[$label]:-}")")
+      theme+=("$(median <<<"${THEME_MS[$label]:-}")")
+      zoom+=("$(median <<<"${ZOOM_MS[$label]:-}")")
+      resize+=("$(median <<<"${RESIZE_MS[$label]:-}")")
+      night+=("$(median <<<"${NIGHT_MS[$label]:-}")")
+      find+=("$(median <<<"${FIND_MS[$label]:-}")")
+    done
+    row "Java allocations from start to $SMALL_NAME drawn (KB)" "${small_allocated[@]}"
+    row "Java allocations from start to $LARGE_NAME drawn (KB, median of 3)" "${allocated[@]}"
+    row "Java heap after $LARGE_NAME (KB PSS, median of 3)" "${java[@]}"
+    row "Native heap after $LARGE_NAME (KB PSS, median of 3)" "${native[@]}"
+    row "Theme switch on $LARGE_NAME, key to drawn (ms, median of 5)" "${theme[@]}"
+    row "Zoom step on $LARGE_NAME, key to drawn (ms, median of 4)" "${zoom[@]}"
+    row "Find on $LARGE_NAME, last key to match count, with the page's 120 ms pause (ms)" "${find[@]}"
+    row "Rotation on $LARGE_NAME, resize to drawn (ms, median)" "${resize[@]}"
+    row "Dark mode switch, activity recreated to $LARGE_NAME drawn (ms, median of 2)" "${night[@]}"
+  fi
+  steps() {
+    local -n values=$1 names=$2
+    printf '| Step |'; for label in "${LABELS[@]}"; do printf ' %s |' "$label"; done; printf '\n'
+    printf '| --- |'; for _ in "${LABELS[@]}"; do printf ' ---: |'; done; printf '\n'
+    for name in "webview_created" "file_read" "rendered" "page_loaded" "reader_ready" "document_sent" "drawn"; do
+      [ -n "${names[$name]:-}" ] || continue
+      printf '| %s |' "${name//_/ }"
+      for label in "${LABELS[@]}"; do printf ' %s |' "$(median <<<"${values[$label|$name]:-}")"; done
+      printf '\n'
+    done
+    echo
+    echo "Inside the page: page-dom and page-load are ms from the page's own start to"
+    echo "DOMContentLoaded and the load event; render is ms from the document message"
+    echo "to the document on screen."
+    echo
+    printf '| Page step |'; for label in "${LABELS[@]}"; do printf ' %s |' "$label"; done; printf '\n'
+    printf '| --- |'; for _ in "${LABELS[@]}"; do printf ' ---: |'; done; printf '\n'
+    for name in "page-dom" "page-load" "render"; do
+      [ -n "${names[$name]:-}" ] || continue
+      printf '| %s |' "$name"
+      for label in "${LABELS[@]}"; do printf ' %s |' "$(median <<<"${values[$label|$name]:-}")"; done
+      printf '\n'
+    done
+  }
   if [ "${#PHASE_NAMES[@]}" -gt 0 ]; then
     echo
     echo "Where the time goes when $SMALL_NAME is opened: milliseconds from the activity's"
-    echo "creation to each step, as the app logs them (median of $STARTS)."
+    echo "creation to each step, as the app logs them (median of $STARTS). The file is"
+    echo "read and rendered on a worker thread while the WebView starts."
     echo
-    printf '| Step |'; for label in "${LABELS[@]}"; do printf ' %s |' "$label"; done; printf '\n'
-    printf '| --- |'; for _ in "${LABELS[@]}"; do printf ' ---: |'; done; printf '\n'
-    for name in "webview_created" "page_loaded" "reader_ready" "document_sent" "drawn"; do
-      [ -n "${PHASE_NAMES[$name]:-}" ] || continue
-      printf '| %s |' "${name//_/ }"
-      for label in "${LABELS[@]}"; do printf ' %s |' "$(median <<<"${PHASES[$label|$name]:-}")"; done
-      printf '\n'
-    done
+    steps PHASES PHASE_NAMES
+  fi
+  if [ "${#LARGE_PHASE_NAMES[@]}" -gt 0 ]; then
+    echo
+    echo "The same for $LARGE_NAME (median of 3)."
+    echo
+    steps LARGE_PHASES LARGE_PHASE_NAMES
   fi
   echo
   echo "Empty app on the same emulator: $EMPTY_FIRST ms to first frame (median of $STARTS)."
