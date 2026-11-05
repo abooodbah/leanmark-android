@@ -1,0 +1,14 @@
+[
+  {"name": "Read a declared size through the growing buffer", "suite": "jvm",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/DocumentReader.kt",
+   "old": "if (sizeHint < 0) return readGrowing(input, limit, ByteArray(0), 64 * 1024)", "new": "if (true) return readGrowing(input, limit, ByteArray(0), 64 * 1024)"},
+  {"name": "Keep the zeros of a stream shorter than declared", "suite": "jvm",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/DocumentReader.kt",
+   "old": "if (read < 0) return exact.copyOf(filled)", "new": "if (read < 0) return exact"},
+  {"name": "Drop what follows the declared size", "suite": "jvm",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/DocumentReader.kt",
+   "old": "        if (next < 0) return exact\n", "new": "        return exact\n"},
+  {"name": "Skip the limit for a stream longer than declared", "suite": "jvm",
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/DocumentReader.kt",
+   "old": "            if (total > limit) throw TooLargeException()", "new": "            if (false) throw TooLargeException()"}
+]
