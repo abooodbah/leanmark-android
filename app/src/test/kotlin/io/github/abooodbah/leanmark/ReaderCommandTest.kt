@@ -61,6 +61,22 @@ class ReaderCommandTest {
     }
 
     @Test
+    fun timingsFromThePageAreShortNamesAndWholeMilliseconds() {
+        // android-host.js reports how long its own work took, for scripts/measure.sh.
+        assertEquals(ReaderCommand.Timing("theme", 125), ReaderCommand.parse("timing|theme|125"))
+        assertEquals(ReaderCommand.Timing("page-load", 0), ReaderCommand.parse("timing|page-load|0"))
+        assertEquals(ReaderCommand.Timing("render", 600_000), ReaderCommand.parse("timing|render|600000"))
+        assertNull(ReaderCommand.parse("timing|theme|-1"))
+        assertNull(ReaderCommand.parse("timing|theme|600001"))
+        assertNull(ReaderCommand.parse("timing|theme|1.5"))
+        assertNull(ReaderCommand.parse("timing|theme|"))
+        assertNull(ReaderCommand.parse("timing||5"))
+        assertNull(ReaderCommand.parse("timing|Theme switch|5"))
+        assertNull(ReaderCommand.parse("timing|" + "a".repeat(25) + "|5"))
+        assertNull(ReaderCommand.parse("timing|theme|5|6"))
+    }
+
+    @Test
     fun unknownMessagesAreIgnored() {
         assertNull(ReaderCommand.parse(""))
         assertNull(ReaderCommand.parse("smoke-ok"))
