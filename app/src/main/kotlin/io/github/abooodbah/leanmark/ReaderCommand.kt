@@ -11,6 +11,12 @@ sealed interface ReaderCommand {
     data class CopySource(val requestId: Long, val headingIndex: Long, val headingCount: Long) : ReaderCommand
     data class Viewer(val open: Boolean) : ReaderCommand
 
+    /** Text width from desktop 0.6.0: "narrow", "wide" or "full". */
+    data class Width(val value: String) : ReaderCommand
+
+    /** The settings sheet was opened or closed (android-host.js). */
+    data class Settings(val open: Boolean) : ReaderCommand
+
     /** The page reached a render state: "ready", or "diagrams" while Mermaid runs. */
     data class Rendered(val state: String) : ReaderCommand
 
@@ -29,6 +35,8 @@ sealed interface ReaderCommand {
                 "reload" -> return Reload
                 "viewer|open" -> return Viewer(true)
                 "viewer|closed" -> return Viewer(false)
+                "settings|open" -> return Settings(true)
+                "settings|closed" -> return Settings(false)
             }
             val bar = message.indexOf('|')
             if (bar < 0) return null
@@ -36,6 +44,7 @@ sealed interface ReaderCommand {
             val rest = message.substring(bar + 1)
             return when (name) {
                 "theme" -> Theme(themeName(rest))
+                "width" -> Width(widthName(rest))
                 "zoom" -> when (rest.lowercase()) {
                     "in" -> Zoom(1)
                     "out" -> Zoom(-1)
@@ -65,6 +74,18 @@ sealed interface ReaderCommand {
         fun themeName(name: String?): String {
             val lower = name.orEmpty().lowercase(java.util.Locale.ROOT)
             return if (lower in THEMES) lower else "system"
+        }
+
+        /**
+         * The text widths in desktop LeanMark 0.6.0's order. As in the core's
+         * ParseTextWidth, names are matched ignoring ASCII case, and anything
+         * else, including no saved width (0.1.x), gives "narrow".
+         */
+        val WIDTHS = listOf("narrow", "wide", "full")
+
+        fun widthName(name: String?): String {
+            val lower = name.orEmpty().lowercase(java.util.Locale.ROOT)
+            return if (lower in WIDTHS) lower else "narrow"
         }
 
         // name|milliseconds, where the name is a short lowercase word.

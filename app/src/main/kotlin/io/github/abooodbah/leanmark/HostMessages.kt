@@ -6,8 +6,10 @@ package io.github.abooodbah.leanmark
  */
 object HostMessages {
     // This host reads the file again for Copy, so copies are exact Markdown. It
-    // shows one document per window, so there are no tabs.
-    const val HOST = """{"type":"host","copySource":true,"tabs":false}"""
+    // shows one document per window, so there are no tabs. The saved zoom and
+    // text width come with it, before the first document, as on the desktop.
+    fun host(zoomPercent: Int, width: String) =
+        """{"type":"host","copySource":true,"tabs":false,"zoom":$zoomPercent,"width":${Json.quote(width)}}"""
 
     fun empty(theme: String) = """{"type":"empty","theme":${Json.quote(theme)}}"""
 
@@ -30,6 +32,9 @@ object HostMessages {
 
     fun copied(requestId: Long, ok: Boolean) = """{"type":"copied","requestId":$requestId,"ok":$ok}"""
 
-    /** Handled by android-host.js, not reader.js: closes the figure viewer. */
+    /** Handled by android-host.js, not reader.js: closes the figure viewer or the settings sheet. */
     const val BACK = """{"type":"android-back"}"""
+
+    /** Handled by android-host.js: a pinch on an expanded figure, one zoom step in or out. */
+    fun viewerZoom(direction: Int) = """{"type":"android-viewer-zoom","direction":${if (direction > 0) 1 else -1}}"""
 }

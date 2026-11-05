@@ -22,6 +22,7 @@ import android.provider.OpenableColumns
 import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.WindowInsets
@@ -45,6 +46,7 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -81,7 +83,7 @@ class MainActivity : Activity() {
     /** What a document looked like when it was opened, to notice changes on return. */
     private data class Stamp(val size: Long?, val modified: Long?)
 
-    private lateinit var root: FrameLayout
+    private lateinit var root: ReaderFrame
     private lateinit var prefs: SharedPreferences
     private val main = Handler(Looper.getMainLooper())
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
@@ -96,25 +98,34 @@ class MainActivity : Activity() {
     private var loading = false
     private var stamp: Stamp? = null
     private var viewerOpen = false
+    private var settingsOpen = false
     private var backCallback: Any? = null
     private var awaitingFirstRender = true
     private var resumedOnce = false
     private var theme = "system"
     private var zoom = 1.0
+    private var width = "narrow"
 
     /** Every request the WebView made that was refused. Read by the instrumented tests. */
     internal val blockedRequests = CopyOnWriteArrayList<String>()
 
     internal val webViewForTest: WebView? get() = webView
     internal val viewerOpenForTest: Boolean get() = viewerOpen
+    internal val settingsOpenForTest: Boolean get() = settingsOpen
+
+    /** Back closes the figure viewer or the settings sheet before it leaves the app. */
+    private val overlayOpen: Boolean get() = viewerOpen || settingsOpen
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
         theme = ReaderCommand.themeName(prefs.getString(KEY_THEME, null))
-        zoom = prefs.getFloat(KEY_ZOOM, 1f).toDouble()
+        // A level saved by 0.1.x loads as it is; one outside the shared
+        // levels gives 100%. A missing width (0.1.x) gives Narrow.
+        zoom = MarkdownCore.normalizeZoom(prefs.getFloat(KEY_ZOOM, 1f).toDouble())
+        width = ReaderCommand.widthName(prefs.getString(KEY_WIDTH, null))
 
-        root = FrameLayout(this)
+        root = ReaderFrame(this, ScaleGestureDetector(this, Pinch()).apply { isQuickScaleEnabled = false })
         setContentView(root)
         layOutEdgeToEdge()
         applyBarColors()
@@ -173,9 +184,10 @@ class MainActivity : Activity() {
     }
 
     // Below Android 13 back arrives as a key. Android 13 and later use
-    // backCallback, registered only while the figure viewer is open.
+    // backCallback, registered only while the figure viewer or the settings
+    // sheet is open.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (Build.VERSION.SDK_INT < 33 && viewerOpen && event.keyCode == KeyEvent.KEYCODE_BACK) {
+        if (Build.VERSION.SDK_INT < 33 && overlayOpen && event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_UP) send(HostMessages.BACK)
             return true
         }
@@ -340,7 +352,10 @@ class MainActivity : Activity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             safeBrowsingEnabled = false
             mediaPlaybackRequiresUserGesture = true
-            builtInZoomControls = true
+            // The reader zooms the document itself (desktop 0.6.0), and a
+            // pinch steps through its levels, so the toolbar keeps its size.
+            setSupportZoom(false)
+            builtInZoomControls = false
             displayZoomControls = false
             textZoom = textZoomPercent()
         }
@@ -400,6 +415,7 @@ class MainActivity : Activity() {
                 webView = null
                 port = null
                 readerReady = false
+                settingsOpen = false
                 setViewerOpen(false)
                 view.destroy()
                 createWebView()
@@ -441,7 +457,7 @@ class MainActivity : Activity() {
             ReaderCommand.Ready -> {
                 readerReady = true
                 phase("reader ready")
-                send(HostMessages.HOST)
+                send(HostMessages.host((zoom * 100).roundToInt(), width))
                 sendCurrentView()
             }
             ReaderCommand.OpenFile -> pickDocument()
@@ -453,6 +469,14 @@ class MainActivity : Activity() {
                 applyBarColors()
             }
             is ReaderCommand.Zoom -> applyZoom(MarkdownCore.stepZoom(zoom, command.direction))
+            is ReaderCommand.Width -> {
+                width = command.value
+                prefs.edit().putString(KEY_WIDTH, width).apply()
+            }
+            is ReaderCommand.Settings -> {
+                settingsOpen = command.open
+                if (Build.VERSION.SDK_INT >= 33) updateBackCallback()
+            }
             is ReaderCommand.OpenLink -> followLink(command.href)
             is ReaderCommand.CopySource -> copySource(command)
             is ReaderCommand.Viewer -> setViewerOpen(command.open)
@@ -617,12 +641,43 @@ class MainActivity : Activity() {
     private fun applyZoom(value: Double) {
         zoom = value
         prefs.edit().putFloat(KEY_ZOOM, value.toFloat()).apply()
-        webView?.settings?.textZoom = textZoomPercent()
         send(HostMessages.zoom((zoom * 100).roundToInt()))
     }
 
-    // The system font size is applied on top of the reader's own zoom.
-    private fun textZoomPercent(): Int = (zoom * resources.configuration.fontScale * 100).roundToInt()
+    // The WebView's text zoom follows only the system font size, for the
+    // whole page. The reader's own zoom is applied by the page to the
+    // document alone.
+    private fun textZoomPercent(): Int = (resources.configuration.fontScale * 100).roundToInt()
+
+    /**
+     * A two-finger pinch steps the document zoom through the shared levels,
+     * from the level it started at, as the fingers spread or close. With a
+     * figure expanded it zooms the figure instead, one step per quarter.
+     */
+    private inner class Pinch : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        private var startZoom = 1.0
+        private var scale = 1.0
+
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            startZoom = zoom
+            scale = 1.0
+            return readerReady
+        }
+
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            scale *= detector.scaleFactor
+            if (viewerOpen) {
+                if (scale >= 1.25 || scale <= 0.8) {
+                    send(HostMessages.viewerZoom(if (scale > 1) 1 else -1))
+                    scale = 1.0
+                }
+                return true
+            }
+            val level = MarkdownCore.normalizeZoom((startZoom * scale).coerceIn(MIN_ZOOM, MAX_ZOOM))
+            if (abs(level - zoom) > 0.001) applyZoom(level)
+            return true
+        }
+    }
 
     private fun setViewerOpen(open: Boolean) {
         viewerOpen = open
@@ -632,14 +687,14 @@ class MainActivity : Activity() {
     @TargetApi(33)
     private fun updateBackCallback() {
         val existing = backCallback as OnBackInvokedCallback?
-        if (viewerOpen && existing == null) {
+        if (overlayOpen && existing == null) {
             val callback = OnBackInvokedCallback { send(HostMessages.BACK) }
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
                 OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 callback,
             )
             backCallback = callback
-        } else if (!viewerOpen && existing != null) {
+        } else if (!overlayOpen && existing != null) {
             onBackInvokedDispatcher.unregisterOnBackInvokedCallback(existing)
             backCallback = null
         }
@@ -705,6 +760,11 @@ class MainActivity : Activity() {
         const val PREFERENCES = "reader"
         const val KEY_THEME = "theme"
         const val KEY_ZOOM = "zoom"
+        const val KEY_WIDTH = "width"
+
+        // The ends of the core's zoom levels (kZoomLevels).
+        const val MIN_ZOOM = 0.5
+        const val MAX_ZOOM = 3.0
         const val STATE_URI = "document"
         const val REQUEST_OPEN = 1
 
