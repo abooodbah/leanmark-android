@@ -17,6 +17,9 @@ sealed interface ReaderCommand {
     /** The settings sheet was opened or closed (android-host.js). */
     data class Settings(val open: Boolean) : ReaderCommand
 
+    /** The "On this page" sheet was opened or closed (android-host.js). */
+    data class Outline(val open: Boolean) : ReaderCommand
+
     /** The page reached a render state: "ready", or "diagrams" while Mermaid runs. */
     data class Rendered(val state: String) : ReaderCommand
 
@@ -37,6 +40,8 @@ sealed interface ReaderCommand {
                 "viewer|closed" -> return Viewer(false)
                 "settings|open" -> return Settings(true)
                 "settings|closed" -> return Settings(false)
+                "outline|open" -> return Outline(true)
+                "outline|closed" -> return Outline(false)
             }
             val bar = message.indexOf('|')
             if (bar < 0) return null
