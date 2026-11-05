@@ -254,13 +254,14 @@ page_work() {
 }
 
 # Memory with the small file, to tell the WebView's own cost from the document's.
-declare -A SMALL_APP=() SMALL_RENDERER=()
+declare -A SMALL_APP=() SMALL_RENDERER=() SMALL_ALLOCATED=()
 for label in "${LABELS[@]}"; do
   install "$label"
   open_document "$SMALL" "$SMALL_TYPE" >/dev/null
   fully_drawn 30 >/dev/null
   sleep 5
   SMALL_APP[$label]=$(pss_of "$PKG")
+  SMALL_ALLOCATED[$label]=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I" | sed -n 's/^allocated \([0-9][0-9]*\) KB by drawn$/\1/p' | head -n 1)
   SMALL_RENDERER[$label]=0
   if [ "$WEBVIEW" = yes ]; then SMALL_RENDERER[$label]=$(renderer_pss); fi
   log "$label small file: app ${SMALL_APP[$label]:-NA} KB, renderer ${SMALL_RENDERER[$label]} KB in $(renderer_count) renderer process(es)"
@@ -379,8 +380,9 @@ row() {
   row "Janky frames over 10 swipes (software GPU, not a budget check)" "${jank[@]}"
   row "90th percentile frame time (software GPU, not a budget check)" "${p90[@]}"
   if [ "$WEBVIEW" = yes ]; then
-    allocated=(); java=(); native=(); theme=(); zoom=(); resize=(); night=(); find=()
+    small_allocated=(); allocated=(); java=(); native=(); theme=(); zoom=(); resize=(); night=(); find=()
     for label in "${LABELS[@]}"; do
+      small_allocated+=("${SMALL_ALLOCATED[$label]:-NA}")
       allocated+=("$(median <<<"${ALLOCATED[$label]:-}")")
       java+=("$(median <<<"${JAVA_HEAP[$label]:-}")")
       native+=("$(median <<<"${NATIVE_HEAP[$label]:-}")")
@@ -390,6 +392,7 @@ row() {
       night+=("$(median <<<"${NIGHT_MS[$label]:-}")")
       find+=("$(median <<<"${FIND_MS[$label]:-}")")
     done
+    row "Java allocations from start to $SMALL_NAME drawn (KB)" "${small_allocated[@]}"
     row "Java allocations from start to $LARGE_NAME drawn (KB, median of 3)" "${allocated[@]}"
     row "Java heap after $LARGE_NAME (KB PSS, median of 3)" "${java[@]}"
     row "Native heap after $LARGE_NAME (KB PSS, median of 3)" "${native[@]}"
