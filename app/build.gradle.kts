@@ -81,6 +81,14 @@ android {
         xmlReport = false
     }
 
+    // Kotlin's metadata files are read only by kotlin-reflect and build tools.
+    // The app uses neither, so they stay out of the APK and the bundle.
+    packaging {
+        resources {
+            excludes += listOf("kotlin/**", "kotlin-tooling-metadata.json")
+        }
+    }
+
     // The dependency list that AGP encrypts for Google Play is kept out of the APK,
     // where IzzyOnDroid flags it as an unreadable blob, and kept in the Play
     // bundle.
