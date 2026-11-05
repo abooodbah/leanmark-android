@@ -24,7 +24,7 @@ class JsonAndMessagesTest {
 
     @Test
     fun documentMessageIsOneValidObject() {
-        val fields = "\"hasMermaid\":true,\"html\":\"<h1>T\\u2028</h1>\""
+        val fields = "\"hasMermaid\":true,\"html\":\"<h1>T\\u2028 café 🚀</h1>\"".toByteArray(Charsets.UTF_8)
         val message = JSONObject(HostMessages.document("dark", "Notes \"1\".md", "content://x/1", 42, fields))
         assertEquals("document", message.getString("type"))
         assertEquals("dark", message.getString("theme"))
@@ -33,7 +33,33 @@ class JsonAndMessagesTest {
         assertEquals(42, message.getLong("sourceBytes"))
         assertEquals(0, message.getInt("tabId"))
         assertTrue(message.getBoolean("hasMermaid"))
-        assertEquals("<h1>T\u2028</h1>", message.getString("html"))
+        assertEquals("<h1>T\u2028 café 🚀</h1>", message.getString("html"))
+    }
+
+    /**
+     * Bytes this thread has allocated, from the JVM that runs the tests. The
+     * management classes are not in android.jar, so they are reached by name.
+     */
+    private fun allocatedBytes(): Long {
+        val threads = Class.forName("java.lang.management.ManagementFactory").getMethod("getThreadMXBean").invoke(null)
+        val allocated = Class.forName("com.sun.management.ThreadMXBean")
+            .getMethod("getThreadAllocatedBytes", Long::class.javaPrimitiveType)
+        return allocated.invoke(threads, Thread.currentThread().id) as Long
+    }
+
+    @Test
+    fun theDocumentMessageIsBuiltFromTheRenderedBytesInOnePass() {
+        // The rendered HTML stays UTF-8 bytes until it is sent, and the message
+        // is one array and one string, not the HTML as text and a second copy
+        // of it inside the message.
+        val html = "<p>" + "x".repeat(4 * 1024 * 1024) + "</p>"
+        val fields = ("\"hasMermaid\":false,\"html\":\"" + html + "\"").toByteArray(Charsets.UTF_8)
+        HostMessages.document("light", "a.md", "content://x/a", 1, fields) // warm up
+        val before = allocatedBytes()
+        val message = HostMessages.document("light", "a.md", "content://x/a", 1, fields)
+        val allocated = allocatedBytes() - before
+        assertTrue("allocated $allocated bytes for ${fields.size} bytes of fields", allocated < fields.size * 2.5)
+        assertEquals(html, JSONObject(message).getString("html"))
     }
 
     @Test
