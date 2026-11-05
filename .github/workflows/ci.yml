@@ -130,6 +130,10 @@ jobs:
             app/build/reports
             app/build/test-results
 
+      # After the size reports, so a failing check still shows the sizes.
+      - name: Check the native library exports only its JNI entry points
+        run: bash scripts/check-native-exports.sh
+
       - name: Summary
         if: always()
         run: |

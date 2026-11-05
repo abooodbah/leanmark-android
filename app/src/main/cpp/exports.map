@@ -1,0 +1,10 @@
+/* The only symbols the library exports: the JNI entry points that
+   MarkdownCore.kt binds by name. Everything else, including the statically
+   linked C++ runtime, stays local, so --gc-sections can drop what nothing
+   calls. */
+{
+  global:
+    Java_io_github_abooodbah_leanmark_*;
+  local:
+    *;
+};
