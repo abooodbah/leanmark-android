@@ -213,6 +213,19 @@ phase_drawn() {
   echo NA
 }
 
+# Milliseconds from a light or dark switch to the page drawn in its new
+# colours, whichever way the build handles it, or NA.
+night_ms() {
+  local limit=$1 log value
+  for _ in $(seq 1 $((limit * 5))); do
+    log=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I")
+    value=$(sed -n -e 's/^page night \([0-9][0-9]*\) ms$/\1/p' -e 's/^phase drawn \([0-9][0-9]*\) ms$/\1/p' <<<"$log" | tail -n 1)
+    if [ -n "$value" ]; then echo "$value"; return; fi
+    sleep 0.2
+  done
+  echo NA
+}
+
 # Page work on the open document: theme, zoom, rotation, a dark mode switch
 # and find. The page times each from the key to the result on screen.
 declare -A THEME_MS=() ZOOM_MS=() WIDTH_MS=() RESIZE_MS=() NIGHT_MS=() FIND_MS=()
@@ -237,12 +250,13 @@ page_work() {
     sleep 3
   done
   RESIZE_MS[$label]=$(page_times resize 1 0)
-  # Dark mode on and off. Android recreates the activity, which reads and
-  # draws the file again; the new activity logs its own steps.
+  # Dark mode on and off. Builds before 0.2.0 let Android recreate the
+  # activity, which logs its own steps up to drawn; later ones recolour in
+  # place and log the time from the switch to the new colours on screen.
   for mode in yes no; do
     adb logcat -c
     adb shell cmd uimode night "$mode" >/dev/null
-    value=$(phase_drawn 90)
+    value=$(night_ms 90)
     NIGHT_MS[$label]+="$value"$'\n'
     sleep 3
   done
@@ -405,7 +419,7 @@ row() {
     row "Text width step on $LARGE_NAME, key to drawn (ms, median of 3; phone held upright)" "${width[@]}"
     row "Find on $LARGE_NAME, last key to match count, with the page's 120 ms pause (ms)" "${find[@]}"
     row "Rotation on $LARGE_NAME, resize to drawn (ms, median)" "${resize[@]}"
-    row "Dark mode switch, activity recreated to $LARGE_NAME drawn (ms, median of 2)" "${night[@]}"
+    row "Dark mode switch to $LARGE_NAME drawn in the new colours (ms, median of 2)" "${night[@]}"
   fi
   steps() {
     local -n values=$1 names=$2

@@ -168,6 +168,17 @@
     timeUntilDrawn("resize", performance.now());
   });
 
+  // A light or dark switch of the phone, seen by the page.
+  var colourScheme = window.matchMedia("(prefers-color-scheme: dark)");
+  var onScheme = function () {
+    timeUntilDrawn("scheme", performance.now());
+  };
+  if (colourScheme.addEventListener) {
+    colourScheme.addEventListener("change", onScheme);
+  } else {
+    colourScheme.addListener(onScheme);
+  }
+
   // The app posts exactly one port, right after the page loads. The page has
   // no frames and runs no document scripts, so nothing else can post here.
   window.addEventListener("message", function (event) {
