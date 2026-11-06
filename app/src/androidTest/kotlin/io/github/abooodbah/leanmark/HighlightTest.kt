@@ -34,7 +34,7 @@ class HighlightTest {
     @Test
     fun scrollingMovesTheHighlightToTheSectionAtTheReadingLine() = open { scenario ->
         for (fraction in listOf(0.2, 0.5, 0.8, 0.35)) {
-            Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * $fraction)")
+            scrollTo(scenario, fraction)
             waitForTheRightEntry(scenario)
         }
         assertTrue((Reader.js(scenario, CURRENT) as Number).toInt() > 5)
@@ -42,13 +42,13 @@ class HighlightTest {
 
     @Test
     fun theSheetShowsTheCurrentEntryAndKeepsItInView() = open { scenario ->
-        Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.7)")
+        scrollTo(scenario, 0.7)
         waitForTheRightEntry(scenario)
         Reader.js(scenario, "document.getElementById('outlineButton').click()")
         Reader.waitFor(scenario, "!document.getElementById('outlineSheet').hidden")
         Reader.waitFor(scenario, "$SHEET_CURRENT === $CURRENT && $SHEET_CURRENT_IN_VIEW")
         // The sheet follows while it is open.
-        Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.3)")
+        scrollTo(scenario, 0.3)
         waitForTheRightEntry(scenario)
         Reader.waitFor(scenario, "$SHEET_CURRENT === $CURRENT && $SHEET_CURRENT_IN_VIEW")
     }
@@ -67,7 +67,7 @@ class HighlightTest {
     fun aLayoutChangeAfterALongJumpMovesTheHighlight() = open { scenario ->
         // A long jump, then content above grows without a scroll event, as
         // when an image or a diagram finishes late.
-        Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.6)")
+        scrollTo(scenario, 0.6)
         waitForTheRightEntry(scenario)
         val before = (Reader.js(scenario, CURRENT) as Number).toInt()
         Reader.js(
@@ -86,7 +86,7 @@ class HighlightTest {
 
     @Test
     fun theHighlightFollowsARotation() = open { scenario ->
-        Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.5)")
+        scrollTo(scenario, 0.5)
         waitForTheRightEntry(scenario)
         scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
         Reader.waitFor(scenario, "window.innerWidth > window.innerHeight")
@@ -98,7 +98,7 @@ class HighlightTest {
 
     @Test
     fun theHighlightFollowsAZoomStep() = open { scenario ->
-        Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.5)")
+        scrollTo(scenario, 0.5)
         waitForTheRightEntry(scenario)
         for (zoom in listOf("150", "75")) {
             Reader.js(scenario, "window.LeanMarkHost.receive({type: 'zoom', percent: $zoom})")
@@ -116,7 +116,7 @@ class HighlightTest {
             }
         }
         Reader.waitFor(scenario, "document.documentElement.dataset.layout === 'wide'")
-        Reader.js(scenario, "window.scrollTo(0, document.documentElement.scrollHeight)")
+        scrollTo(scenario, 1.0)
         waitForTheRightEntry(scenario)
         Reader.waitFor(
             scenario,
@@ -128,7 +128,7 @@ class HighlightTest {
 
     @Test
     fun theHighlightLooksTheSameInEveryTheme() = open { scenario ->
-        Reader.js(scenario, "window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.5)")
+        scrollTo(scenario, 0.5)
         waitForTheRightEntry(scenario)
         Reader.js(scenario, "document.getElementById('outlineButton').click()")
         Reader.waitFor(scenario, "!document.getElementById('outlineSheet').hidden")
@@ -154,6 +154,16 @@ class HighlightTest {
             Reader.waitForDocument(scenario)
             body(scenario)
         }
+
+    /**
+     * Scrolls to [fraction] of the page and waits until the page is there:
+     * the reader scrolls a new document to the top on its next frame, which
+     * can undo a scroll made just after the document appears.
+     */
+    private fun scrollTo(scenario: ActivityScenario<MainActivity>, fraction: Double) {
+        val target = "Math.round((document.documentElement.scrollHeight - innerHeight) * $fraction)"
+        Reader.waitFor(scenario, "(function () { window.scrollTo(0, $target); return Math.abs(window.scrollY - $target) < 2; })()")
+    }
 
     private fun waitForTheRightEntry(scenario: ActivityScenario<MainActivity>) =
         Reader.waitFor(scenario, "$CURRENT === $EXPECTED")
