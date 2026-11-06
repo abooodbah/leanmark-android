@@ -58,6 +58,17 @@ Updated with every merge. The next session starts here.
   phone.
 - Version 0.2.0 (versionCode 4): notes in `docs/releases/v0.2.0.md` and
   `fastlane/metadata/android/en-US/changelogs/4.txt`.
+- Light and dark switch in place (PR #28): the activity handles `uiMode`,
+  so it keeps the WebView, the document and the position; only the System
+  theme recolours. reader.js's diagram redraw starts two frames later, so
+  the new colours show first. large.md: first frame 1,369 to 1,198 ms,
+  diagrams 4,550 to 3,228 ms; simple.md 518 to 387 ms (run 42215871681).
+- Start time checked (closed draft #27, run 42183359661): 15 cold starts of
+  simple.md per build, builds in turns. Median to the document on screen:
+  main 1,166 ms, the same APK installed again 1,138 ms, main with the 0.5.0
+  reader files 1,206 ms. The 0.6.0 reader costs nothing measurable; the +54
+  to +81 ms in earlier budgets runs is base-against-branch spread, which
+  read 233 and 224 ms (#25) and 406 and 303 ms (#24) for the same app code.
 
 ## In progress
 
@@ -169,7 +180,7 @@ Findings. Numbers are from run 41981714168 (PR #16) unless a PR is named.
 | APK (`build.gradle.kts`) | Kotlin metadata files nothing reads | 13,728 bytes | Leave them out of packaging | Fixed in #18 |
 | Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours | 5,228 ms on large.md (11 diagrams) | Desktop reader code. Desktop LeanMark plans to skip the redraw when a theme change keeps the diagram colours; it comes with the next reader update | For the desktop |
 | Zoom (`WebSettings.textZoom`) | Enlarges the toolbar too and lays the whole page out again | 786 ms per step on large.md | The reader zooms only the document (desktop 0.6.0) | Replaced in #19: 1,405 to 1,144 ms per step (run 41987196578) |
-| Dark mode switch (manifest `configChanges`) | Android recreates the activity: the file is read, parsed and drawn again | 1,245 ms to drawn on large.md, against 167 ms for a rotation | Handle `uiMode` in the activity. Needs a check on a phone that WebView's `prefers-color-scheme` follows without a new activity | For the maintainer to decide |
+| Dark mode switch (manifest `configChanges`) | Android recreates the activity: the file is read, parsed and drawn again | 1,245 ms to drawn on large.md, against 167 ms for a rotation | Handle `uiMode` in the activity | Fixed in #28: first frame 1,369 to 1,198 ms, diagrams 4,550 to 3,228 ms, position kept |
 | Opening large.md in the page | Mermaid draws 11 diagrams after the text is on screen | Text drawn 1,349 ms after creation; diagrams done 3,561 ms after the document arrives | Desktop reader code (Mermaid). The text is readable before the diagrams | No change |
 | WebView renderer memory | DOM of a 1 MiB document plus Mermaid | 314,661 KB PSS after large.md | Desktop reader code | No change |
 | Open: port posted in `onPageFinished` | The document waits for the page's load event | Load event 15 ms after DOMContentLoaded (292 and 277 ms) | Posting the port earlier would save at most 15 ms | No change |
