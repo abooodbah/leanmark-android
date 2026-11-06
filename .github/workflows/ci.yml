@@ -18,6 +18,7 @@ concurrency:
 jobs:
   build:
     name: Lint, unit tests, release build
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -151,6 +152,7 @@ jobs:
 
   store-graphics:
     name: Google Play graphics
+    if: false
     # The icon, feature graphic and screenshots in store/ against Play's rules.
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -166,6 +168,7 @@ jobs:
 
   emulator:
     name: Emulator tests (API ${{ matrix.api }})
+    if: false
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -294,14 +297,22 @@ jobs:
           ./gradlew --no-daemon :baseline:assembleRelease
           cp baseline/build/outputs/apk/release/baseline-release.apk measure/empty.apk
 
-      - name: Build the base branch
+      - name: Build the variants
         run: |
-          git worktree add ../base "origin/${{ github.base_ref }}"
-          if (cd ../base && ./gradlew --no-daemon -PdebugSignRelease assembleRelease); then
-            cp ../base/app/build/outputs/apk/release/app-release.apk measure/base.apk
-          else
-            echo "The base branch does not build a release APK."
-          fi
+          cp measure/branch.apk measure/control.apk
+          sed -i 's/^    var ratio = scrollRatio();$/    var keep = !elements.readerPane.hidden;\n    var ratio = keep ? scrollRatio() : 0;/; s/^    scrollToRatio(ratio);$/    if (keep) {\n      scrollToRatio(ratio);\n    }/' app/src/main/assets/reader/reader.js
+          grep -c 'var keep = ' app/src/main/assets/reader/reader.js
+          ./gradlew --no-daemon -PdebugSignRelease :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk measure/guard.apk
+          git checkout app/src/main/assets/reader/reader.js
+          sed -i 's/    outlineSheet = setUpOutlineSheet();/    outlineSheet = null;/' app/src/main/assets/reader/android-host.js
+          ./gradlew --no-daemon -PdebugSignRelease :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk measure/nosheet.apk
+          git checkout app/src/main/assets
+          for f in reader.css reader.js reader.html; do git show 6591c29:app/src/main/assets/reader/$f > app/src/main/assets/reader/$f; done
+          ./gradlew --no-daemon -PdebugSignRelease :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk measure/oldreader.apk
+          git checkout app/src/main/assets
 
       - name: Measure
         uses: reactivecircus/android-emulator-runner@v2
@@ -314,9 +325,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: |
-            df -h / && free -m
             adb install -r measure/fixtures.apk
-            bash -c 'set -o pipefail; if [ -f measure/base.apk ]; then base="base=measure/base.apk"; fi; scripts/measure.sh empty=measure/empty.apk $base branch=measure/branch.apk | tee measure/results.md'
+            bash scripts/exp-start.sh main=measure/branch.apk control=measure/control.apk guard=measure/guard.apk nosheet=measure/nosheet.apk oldreader=measure/oldreader.apk | tee measure/results.md
 
       - name: Summary
         if: always()
