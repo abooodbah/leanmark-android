@@ -206,6 +206,13 @@
       requestAnimationFrame(function () {
         send("timing|scheme|" + Math.round(performance.now() - start));
       });
+      // And until the diagrams are drawn again: reader.js's handler runs in
+      // a task queued from this frame, so look after it.
+      setTimeout(function () {
+        setTimeout(function () {
+          timeUntilDrawn("scheme-diagrams", start);
+        }, 0);
+      }, 0);
     });
   };
   if (colourScheme.addEventListener) {
