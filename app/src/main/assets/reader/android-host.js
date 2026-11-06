@@ -168,10 +168,38 @@
     timeUntilDrawn("resize", performance.now());
   });
 
+  // When the phone switches between light and dark, the page's colours
+  // change at once through CSS, and reader.js then draws every diagram again,
+  // which can hold the next frame for seconds on a long document. Its
+  // handler runs after the next frame instead, so the new colours are on
+  // screen first. android-host.js runs before reader.js, so this wraps the
+  // list reader.js gets from matchMedia.
+  var realMatchMedia = window.matchMedia.bind(window);
+  window.matchMedia = function (query) {
+    var list = realMatchMedia(query);
+    if (query !== "(prefers-color-scheme: dark)" || !list.addEventListener) {
+      return list;
+    }
+    var add = list.addEventListener.bind(list);
+    list.addEventListener = function (type, listener, options) {
+      if (type !== "change") {
+        return add(type, listener, options);
+      }
+      return add(type, function (event) {
+        requestAnimationFrame(function () {
+          setTimeout(function () {
+            listener.call(list, event);
+          }, 0);
+        });
+      }, options);
+    };
+    return list;
+  };
+
   // A light or dark switch of the phone, seen by the page: timed to the
   // first frame in the new colours. Diagrams are drawn again after that, as
   // they are when Android recreates the activity, so they are not waited for.
-  var colourScheme = window.matchMedia("(prefers-color-scheme: dark)");
+  var colourScheme = realMatchMedia("(prefers-color-scheme: dark)");
   var onScheme = function () {
     var start = performance.now();
     requestAnimationFrame(function () {
