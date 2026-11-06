@@ -49,15 +49,39 @@ Updated with every merge. The next session starts here.
   the levels. On a phone the settings panel is a sheet at the bottom
   without the shortcut list, the theme button shows only its dot, and back
   closes the sheet. The missing-image note takes the theme's colours.
+  Reader files later from desktop 1e9f20e, whose resize lays the page out
+  once: rotating large.md 155 and 165 ms against 452 and 172 ms on main
+  (run 42175760521).
+- "On this page" as a sheet on phones (PR #24) and the current-section
+  highlight from desktop LeanMark (PR #25), with the desktop's look in all
+  five themes, beside the document on a wide screen and in the sheet on a
+  phone.
+- Version 0.2.0 (versionCode 4): notes in `docs/releases/v0.2.0.md` and
+  `fastlane/metadata/android/en-US/changelogs/4.txt`.
 
 ## In progress
 
-- Version 0.2.0. The plan is below. Next: "On this page" as a sheet on
-  phones, then the section highlight from desktop LeanMark.
-- PR #19 is green but not merged until rotation is back within 10% of
-  main: rotating large.md is about four times slower with the 0.6.0 reader
-  (137 to 221 ms against 515 to 686 ms, bisect run 41988918132). The cause
-  is in the desktop reader, which desktop LeanMark is fixing.
+- The v0.2.0 tag, pre-release and release files. This session cannot
+  create tags, so they are made from the maintainer's computer: see
+  "Releasing 0.2.0" below.
+
+## Releasing 0.2.0
+
+After the version bump is merged, from a clone of main at that commit:
+
+```sh
+git tag -a v0.2.0 -F docs/releases/v0.2.0.md
+git push origin v0.2.0
+gh release create v0.2.0 --prerelease --title "LeanMark 0.2.0" --notes-file docs/releases/v0.2.0.md
+gh workflow run release.yml -f tag=v0.2.0
+gh workflow run play-bundle.yml -f tag=v0.2.0
+```
+
+The "Release files" run attaches `LeanMark-0.2.0.apk`, `LeanMark-0.2.0.aab`,
+`LeanMark-0.2.0-debug.apk`, `empty-app.apk`,
+`LeanMark-0.2.0-phone-test-files.zip` and a `.sha256` for each. The "Play
+bundle" run keeps `LeanMark-0.2.0-play.aab` and its `.sha256` as a workflow
+artifact for 7 days; nothing is uploaded to Google Play.
 
 ## Plan for 0.2.0
 
@@ -168,12 +192,6 @@ need a phone to verify, so they are not clear wins.
 
 ## Known gaps
 
-- Rotating a large document lays it out twice with the 0.6.0 reader: on
-  the emulator, large.md took 515 to 686 ms from resize to drawn against
-  137 to 221 ms with the 0.5.0 reader (bisect run 41988918132). The cause
-  is in the desktop reader, which sets the layout attribute in its resize
-  handler after Blink has already laid the page out at the new size.
-  Reported for the desktop.
 - On a phone held upright the three text widths look the same: the screen
   is narrower than the 720 px column. They differ in landscape, on tablets
   and when zoomed out.
@@ -232,13 +250,13 @@ minutes.
 
 From the release page on GitHub, download onto the phone:
 
-- `LeanMark-0.1.2.apk`: the release build (minified), signed with the
+- `LeanMark-0.2.0.apk`: the release build (minified), signed with the
   release key. Use this one for timing.
-- `LeanMark-0.1.2-debug.apk`: the debug build, for comparison only. It is
+- `LeanMark-0.2.0-debug.apk`: the debug build, for comparison only. It is
   slower by design.
 - `empty-app.apk`: an app with one empty screen, for the start-time
   baseline with adb (it has no launcher icon).
-- `LeanMark-0.1.2-phone-test-files.zip`: the files below. Unzip it into
+- `LeanMark-0.2.0-phone-test-files.zip`: the files below. Unzip it into
   Downloads.
 
 Open the APK from the browser's downloads or the Files app and allow the

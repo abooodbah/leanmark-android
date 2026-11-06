@@ -7,7 +7,10 @@ Open a file from your file manager, from an email attachment or from your browse
 What it does:
 - Find in the document
 - Copy a section, or the whole file, as the original Markdown
-- Pinch to zoom; follows the system font size
+- Pinch to zoom the text; the toolbar keeps its size, and the system font size still applies
+- Text width: Narrow, Wide or Full
+- On this page: the document's sections, with the one you are reading highlighted
+- Settings sheet for theme, text width and zoom
 - Five themes: System (follows the phone), Light, Dark, and two softer dark themes, Dim and Dusk
 - Keeps your place when you rotate the phone
 - Links to websites open in your browser only when you tap them
