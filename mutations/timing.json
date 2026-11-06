@@ -23,7 +23,7 @@
    "old": "        timeUntilDrawn(\"render\", start);\n", "new": ""},
   {"name": "Time no zoom step", "suite": "device", "tests": ["PageTimingTest"],
    "file": "app/src/main/assets/reader/android-host.js",
-   "old": "        timeUntilDrawn(\"zoom\", inputStart());\n", "new": ""},
+   "old": "        timeUntilDrawn(\"zoom\", userStart);\n", "new": ""},
   {"name": "Name every theme change a width change", "suite": "device", "tests": ["PageTimingTest"],
    "file": "app/src/main/assets/reader/android-host.js",
    "old": "var name = record.attributeName === \"data-theme\" ? \"theme\" : \"width\";", "new": "var name = \"width\";"},

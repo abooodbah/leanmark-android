@@ -40,15 +40,24 @@ Updated with every merge. The next session starts here.
   rendered bytes (PR #22). Java allocations up to large.md on screen went
   from 13,461 to 12,350 KB (#21, run 41993382698) and from 13,823 to
   10,111 KB (#22, run 41993441975).
+- Desktop 0.6.0 port (PR #19): reader files and core from desktop v0.6.0
+  (3208af8). Text width (Narrow, Wide, Full) saved as `width` and sent with
+  the saved zoom in the host message; settings from 0.1.x open in Narrow.
+  Zoom enlarges only the document: WebView text zoom follows only the
+  system font size, the page zooms the document, a pinch steps through the
+  same levels (or zooms an expanded figure), and a saved zoom is snapped to
+  the levels. On a phone the settings panel is a sheet at the bottom
+  without the shortcut list, the theme button shows only its dot, and back
+  closes the sheet. The missing-image note takes the theme's colours.
 
 ## In progress
 
-- Version 0.2.0. The plan is below.
-- PR #19, the desktop 0.6.0 port, is green but not merged: rotating
-  large.md is about four times slower with the 0.6.0 reader (137 to 221 ms
-  against 515 to 686 ms, bisect run 41988918132). The cause is in the
-  desktop reader, which desktop LeanMark is fixing. The outline sheet and
-  the highlight follow it.
+- Version 0.2.0. The plan is below. Next: "On this page" as a sheet on
+  phones, then the section highlight from desktop LeanMark.
+- PR #19 is green but not merged until rotation is back within 10% of
+  main: rotating large.md is about four times slower with the 0.6.0 reader
+  (137 to 221 ms against 515 to 686 ms, bisect run 41988918132). The cause
+  is in the desktop reader, which desktop LeanMark is fixing.
 
 ## Plan for 0.2.0
 
@@ -135,7 +144,7 @@ Findings. Numbers are from run 41981714168 (PR #16) unless a PR is named.
 | Native library (`CMakeLists.txt`) | The C++ runtime exported 1,975 symbols, so the linker kept all of its code | APK 4,103,101 bytes; arm64 `.so` 1,113,648 bytes | Export only the JNI entry points (version script) | Fixed in #17: APK 2,253,125 bytes, arm64 `.so` 411,128, arm64 download 1,497,097 to 1,294,523 |
 | APK (`build.gradle.kts`) | Kotlin metadata files nothing reads | 13,728 bytes | Leave them out of packaging | Fixed in #18 |
 | Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours | 5,228 ms on large.md (11 diagrams) | Desktop reader code. Desktop LeanMark plans to skip the redraw when a theme change keeps the diagram colours; it comes with the next reader update | For the desktop |
-| Zoom (`WebSettings.textZoom`) | Enlarges the toolbar too and lays the whole page out again | 786 ms per step on large.md | The reader zooms only the document (desktop 0.6.0) | Replaced in the 0.6.0 port; numbers there |
+| Zoom (`WebSettings.textZoom`) | Enlarges the toolbar too and lays the whole page out again | 786 ms per step on large.md | The reader zooms only the document (desktop 0.6.0) | Replaced in #19: 1,405 to 1,144 ms per step (run 41987196578) |
 | Dark mode switch (manifest `configChanges`) | Android recreates the activity: the file is read, parsed and drawn again | 1,245 ms to drawn on large.md, against 167 ms for a rotation | Handle `uiMode` in the activity. Needs a check on a phone that WebView's `prefers-color-scheme` follows without a new activity | For the maintainer to decide |
 | Opening large.md in the page | Mermaid draws 11 diagrams after the text is on screen | Text drawn 1,349 ms after creation; diagrams done 3,561 ms after the document arrives | Desktop reader code (Mermaid). The text is readable before the diagrams | No change |
 | WebView renderer memory | DOM of a 1 MiB document plus Mermaid | 314,661 KB PSS after large.md | Desktop reader code | No change |
@@ -158,6 +167,21 @@ need a phone to verify, so they are not clear wins.
   these need the maintainer's account.
 
 ## Known gaps
+
+- Rotating a large document lays it out twice with the 0.6.0 reader: on
+  the emulator, large.md took 515 to 686 ms from resize to drawn against
+  137 to 221 ms with the 0.5.0 reader (bisect run 41988918132). The cause
+  is in the desktop reader, which sets the layout attribute in its resize
+  handler after Blink has already laid the page out at the new size.
+  Reported for the desktop.
+- On a phone held upright the three text widths look the same: the screen
+  is narrower than the 720 px column. They differ in landscape, on tablets
+  and when zoomed out.
+- With the settings sheet open at a zoom under 75%, the page uses its
+  compact layout, because the desktop reader counts the sheet's full width
+  as taken.
+- WebView 69 (Android 8 images) lays out the sheet's radio buttons one per
+  line; it has no flex layout for fieldsets.
 
 - Images next to the Markdown file and links to other local Markdown files
   are not shown: a shared file comes without access to its folder.

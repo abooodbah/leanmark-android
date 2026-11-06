@@ -159,6 +159,41 @@ class ThemeTest {
         }
     }
 
+    @Test
+    fun theThemeButtonShowsTheThemesDotAndNamesIt() = Reader.open("simple.md").use { scenario ->
+        Reader.waitForDocument(scenario)
+        // Desktop 0.6.0's dot colours; System is half Light and half Dark.
+        val dots = mapOf("light" to "#ffffff", "dark" to "#000000", "dim" to "#7f8a99", "dusk" to "#c98f4f")
+        for (name in listOf("light", "dark", "dim", "dusk", "system")) {
+            choose(scenario, name)
+            assertEquals(name, Reader.js(scenario, "document.getElementById('themeSwatch').dataset.swatch"))
+            val label = Reader.js(scenario, "document.getElementById('themeButton').getAttribute('aria-label')") as String
+            assertTrue("$name: $label", label.startsWith("Theme: " + name.replaceFirstChar { it.uppercase() }))
+            val dot = "getComputedStyle(document.getElementById('themeSwatch'))"
+            if (name == "system") {
+                assertTrue(Reader.js(scenario, "$dot.backgroundImage") as String, (Reader.js(scenario, "$dot.backgroundImage") as String).contains("gradient"))
+            } else {
+                assertEquals("$name dot", color(dots.getValue(name)), color(Reader.js(scenario, "$dot.backgroundColor") as String))
+            }
+            // On a phone the button shows only the dot.
+            assertEquals("none", Reader.js(scenario, "getComputedStyle(document.getElementById('themeLabel')).display"))
+        }
+    }
+
+    @Test
+    fun theMissingImageNoteTakesEachThemesColours() = Reader.open("showcase.md").use { scenario ->
+        Reader.waitForDocument(scenario)
+        for (name in listOf("light", "dark", "dim", "dusk")) {
+            choose(scenario, name)
+            val background = style(scenario, ".blocked-image", "backgroundColor")
+            val text = style(scenario, ".blocked-image", "color")
+            assertEquals("$name note background", color(token(scenario, "--surface-muted")), color(background))
+            assertEquals("$name note text", color(token(scenario, "--text-secondary")), color(text))
+            val ratio = contrast(text, background)
+            assertTrue("$name note contrast $ratio", ratio >= 4.5)
+        }
+    }
+
     private fun choose(scenario: ActivityScenario<MainActivity>, name: String) {
         val label = name.replaceFirstChar { it.uppercase() }
         repeat(6) {

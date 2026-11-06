@@ -64,10 +64,14 @@ class JsonAndMessagesTest {
 
     @Test
     fun otherMessagesMatchTheReaderProtocol() {
-        val host = JSONObject(HostMessages.HOST)
+        // The saved zoom and width go with the host message, as the desktop
+        // hosts send them, so the first document is laid out once.
+        val host = JSONObject(HostMessages.host(125, "wide"))
         assertEquals("host", host.getString("type"))
         assertTrue(host.getBoolean("copySource"))
         assertFalse(host.getBoolean("tabs"))
+        assertEquals(125, host.getInt("zoom"))
+        assertEquals("wide", host.getString("width"))
 
         val error = JSONObject(HostMessages.error("system", "a.md", "Bad\nfile"))
         assertEquals("error", error.getString("type"))
@@ -82,5 +86,8 @@ class JsonAndMessagesTest {
         assertEquals(4294967295L, copied.getLong("requestId"))
         assertTrue(copied.getBoolean("ok"))
         assertEquals("android-back", JSONObject(HostMessages.BACK).getString("type"))
+        val viewerZoom = JSONObject(HostMessages.viewerZoom(-1))
+        assertEquals("android-viewer-zoom", viewerZoom.getString("type"))
+        assertEquals(-1, viewerZoom.getInt("direction"))
     }
 }
