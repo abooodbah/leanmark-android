@@ -168,10 +168,17 @@
     timeUntilDrawn("resize", performance.now());
   });
 
-  // A light or dark switch of the phone, seen by the page.
+  // A light or dark switch of the phone, seen by the page: timed to the
+  // first frame in the new colours. Diagrams are drawn again after that, as
+  // they are when Android recreates the activity, so they are not waited for.
   var colourScheme = window.matchMedia("(prefers-color-scheme: dark)");
   var onScheme = function () {
-    timeUntilDrawn("scheme", performance.now());
+    var start = performance.now();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        send("timing|scheme|" + Math.round(performance.now() - start));
+      });
+    });
   };
   if (colourScheme.addEventListener) {
     colourScheme.addEventListener("change", onScheme);
