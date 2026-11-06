@@ -185,11 +185,15 @@
       if (type !== "change") {
         return add(type, listener, options);
       }
+      // Two frames: the first paints the new colours, the second shows
+      // them, and only then the redraw starts.
       return add(type, function (event) {
         requestAnimationFrame(function () {
-          setTimeout(function () {
-            listener.call(list, event);
-          }, 0);
+          requestAnimationFrame(function () {
+            setTimeout(function () {
+              listener.call(list, event);
+            }, 0);
+          });
         });
       }, options);
     };
@@ -206,13 +210,17 @@
       requestAnimationFrame(function () {
         send("timing|scheme|" + Math.round(performance.now() - start));
       });
-      // And until the diagrams are drawn again: reader.js's handler runs in
-      // a task queued from this frame, so look after it.
-      setTimeout(function () {
+    });
+    // And until the diagrams are drawn again: reader.js's handler runs in a
+    // task queued two frames on, so look after it.
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
         setTimeout(function () {
-          timeUntilDrawn("scheme-diagrams", start);
+          setTimeout(function () {
+            timeUntilDrawn("scheme-diagrams", start);
+          }, 0);
         }, 0);
-      }, 0);
+      });
     });
   };
   if (colourScheme.addEventListener) {

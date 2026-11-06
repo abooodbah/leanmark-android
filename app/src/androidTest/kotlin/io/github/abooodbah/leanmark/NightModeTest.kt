@@ -88,6 +88,26 @@ class NightModeTest {
         }
     }
 
+    @Test
+    fun theNewColoursAreOnScreenBeforeTheDiagramsAreDrawnAgain() {
+        assumeTrue("Mermaid needs WebView 94 or later", Reader.webViewMajor >= 94)
+        Reader.open("showcase.md").use { scenario ->
+            Reader.waitForDocument(scenario, timeoutMs = 60_000)
+            shell("logcat -c")
+            night(true)
+            val pattern = Regex("page scheme-diagrams (\\d+) ms")
+            val deadline = SystemClock.uptimeMillis() + 30_000
+            var log = ""
+            while (!pattern.containsMatchIn(log) && SystemClock.uptimeMillis() < deadline) {
+                SystemClock.sleep(200)
+                log = shell("logcat -d -v raw -s LeanMarkTiming:I")
+            }
+            val colours = Regex("page scheme (\\d+) ms").find(log)!!.groupValues[1].toLong()
+            val diagrams = pattern.find(log)!!.groupValues[1].toLong()
+            assertTrue("colours after $colours ms, diagrams after $diagrams ms", colours * 2 < diagrams)
+        }
+    }
+
     private fun place(scenario: ActivityScenario<MainActivity>): Double =
         (Reader.js(scenario, "window.scrollY") as Number).toDouble()
 

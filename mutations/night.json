@@ -46,7 +46,7 @@
    "NightModeTest"
   ],
   "file": "app/src/main/assets/reader/android-host.js",
-  "old": "        requestAnimationFrame(function () {\n          setTimeout(function () {\n            listener.call(list, event);\n          }, 0);\n        });\n",
+  "old": "        requestAnimationFrame(function () {\n          requestAnimationFrame(function () {\n            setTimeout(function () {\n              listener.call(list, event);\n            }, 0);\n          });\n        });\n",
   "new": "        listener.call(list, event);\n"
  }
 ]
