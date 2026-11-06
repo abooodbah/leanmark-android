@@ -138,6 +138,7 @@ public final class FixtureProvider extends ContentProvider {
             case "showcase.md":
             case "security.md":
             case "linked-document.md":
+            case "long-outline.md":
                 out.write(asset("fixtures/" + base));
                 break;
             case "notes.txt":

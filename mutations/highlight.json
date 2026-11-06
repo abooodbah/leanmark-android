@@ -1,0 +1,14 @@
+[
+  {"name": "Copy no current entry to the sheet", "suite": "device", "tests": ["HighlightTest"],
+   "file": "app/src/main/assets/reader/android-host.js",
+   "old": "          copies[index].setAttribute(\"aria-current\", value);\n", "new": ""},
+  {"name": "Never scroll the sheet to the current entry", "suite": "device", "tests": ["HighlightTest"],
+   "file": "app/src/main/assets/reader/android-host.js",
+   "old": "        keepInView(current, always);\n", "new": ""},
+  {"name": "Stop following while the sheet is open", "suite": "device", "tests": ["HighlightTest"],
+   "file": "app/src/main/assets/reader/android-host.js",
+   "old": "      if (!sheet.hidden) {\n        syncCurrent(false);\n      }", "new": "      if (!sheet.hidden) {\n      }"},
+  {"name": "Give the sheet its own look instead of the outline's", "suite": "device", "tests": ["HighlightTest"],
+   "file": "app/src/main/assets/reader/android-host.js",
+   "old": "sheet.className = \"outline outline-sheet\";", "new": "sheet.className = \"outline-sheet\";"}
+]
