@@ -46,15 +46,21 @@
   }
 
   // The back gesture closes an open figure viewer, the way Escape does, or
-  // else the settings sheet.
+  // else an open sheet.
   function goBack() {
     var viewer = document.getElementById("figureViewer");
-    var close = document.getElementById("settingsClose");
     if (viewer && !viewer.hidden) {
       pressKey("Escape");
-    } else if (close && !document.getElementById("settingsPanel").hidden) {
-      close.click();
+    } else if (settingsOpen()) {
+      document.getElementById("settingsClose").click();
+    } else if (outlineSheet) {
+      outlineSheet.setOpen(false);
     }
+  }
+
+  function settingsOpen() {
+    var panel = document.getElementById("settingsPanel");
+    return !!panel && !panel.hidden;
   }
 
   // Timings for the budgets job (scripts/measure.sh): how long the page takes
@@ -264,7 +270,186 @@
     }).observe(element, { attributes: true, attributeFilter: ["hidden"] });
   }
   document.addEventListener("DOMContentLoaded", function () {
+    outlineSheet = setUpOutlineSheet();
     reportOpen("figureViewer", "viewer");
     reportOpen("settingsPanel", "settings");
+    reportOpen("outlineSheet", "outline");
   });
+
+  // "On this page" on a phone. The desktop shows the outline beside the
+  // document only from 1180 px wide, so a phone shows none. Here a round
+  // button in the bottom corner opens a copy of the outline's entries as a
+  // sheet. The copy follows the outline's current entry (aria-current) and
+  // keeps it in view, and a tap on an entry is handed to the outline's own
+  // link, so the page moves as it does on the desktop. Only one sheet is
+  // open at a time.
+  var outlineSheet = null;
+  var svgNamespace = "http://www.w3.org/2000/svg";
+
+  function icon(path) {
+    var svg = document.createElementNS(svgNamespace, "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("aria-hidden", "true");
+    var shape = document.createElementNS(svgNamespace, "path");
+    shape.setAttribute("d", path);
+    svg.appendChild(shape);
+    return svg;
+  }
+
+  function setUpOutlineSheet() {
+    var outline = document.getElementById("outline");
+    var list = document.getElementById("outlineList");
+    var pane = document.getElementById("readerPane");
+    var panel = document.getElementById("settingsPanel");
+    if (!outline || !list || !pane) {
+      return null;
+    }
+    var button = document.createElement("button");
+    button.id = "outlineButton";
+    button.type = "button";
+    button.className = "outline-button";
+    button.setAttribute("aria-label", "On this page");
+    button.setAttribute("aria-haspopup", "dialog");
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", "outlineSheet");
+    button.appendChild(icon("M2 4h12M2 8h12M2 12h8"));
+
+    var sheet = document.createElement("nav");
+    sheet.id = "outlineSheet";
+    sheet.className = "outline outline-sheet";
+    sheet.setAttribute("aria-labelledby", "outlineSheetTitle");
+    sheet.hidden = true;
+    var header = document.createElement("div");
+    header.className = "outline-sheet-header";
+    var title = document.createElement("span");
+    title.id = "outlineSheetTitle";
+    title.className = "outline-label";
+    title.textContent = "On this page";
+    var close = document.createElement("button");
+    close.type = "button";
+    close.className = "viewer-button";
+    close.setAttribute("aria-label", "Close");
+    close.appendChild(icon("M4 4l8 8M12 4l-8 8"));
+    header.appendChild(title);
+    header.appendChild(close);
+    var copy = document.createElement("ol");
+    sheet.appendChild(header);
+    sheet.appendChild(copy);
+    document.body.appendChild(button);
+    document.body.appendChild(sheet);
+
+    // A third of the way down, as the desktop keeps its outline entry.
+    function keepInView(link, always) {
+      var top = link.offsetTop;
+      var visible = top >= sheet.scrollTop &&
+        top + link.offsetHeight <= sheet.scrollTop + sheet.clientHeight;
+      if (always || !visible) {
+        sheet.scrollTop = Math.max(0, top - sheet.clientHeight / 3);
+      }
+    }
+
+    function syncCurrent(always) {
+      var originals = list.querySelectorAll("a");
+      var copies = copy.querySelectorAll("a");
+      var current = null;
+      for (var index = 0; index < copies.length; index += 1) {
+        var value = originals[index] ? originals[index].getAttribute("aria-current") : null;
+        if (value) {
+          copies[index].setAttribute("aria-current", value);
+          current = copies[index];
+        } else {
+          copies[index].removeAttribute("aria-current");
+        }
+      }
+      if (current) {
+        keepInView(current, always);
+      }
+    }
+
+    function setOpen(open) {
+      if (open === !sheet.hidden) {
+        return;
+      }
+      if (open) {
+        if (settingsOpen()) {
+          document.getElementById("settingsClose").click();
+        }
+        var fresh = list.cloneNode(true);
+        copy.replaceChildren.apply(copy, Array.prototype.slice.call(fresh.childNodes));
+      }
+      sheet.hidden = !open;
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        syncCurrent(true);
+      }
+    }
+
+    function update() {
+      button.hidden = pane.hidden || outline.hidden;
+      if (button.hidden) {
+        setOpen(false);
+      }
+    }
+
+    button.addEventListener("click", function () {
+      setOpen(sheet.hidden);
+    });
+    close.addEventListener("click", function () {
+      setOpen(false);
+    });
+    copy.addEventListener("click", function (event) {
+      var link = event.target.closest ? event.target.closest("a") : null;
+      if (!link) {
+        return;
+      }
+      event.preventDefault();
+      var index = Array.prototype.indexOf.call(copy.querySelectorAll("a"), link);
+      var original = list.querySelectorAll("a")[index];
+      setOpen(false);
+      if (original) {
+        original.click();
+      }
+    });
+    new MutationObserver(function () {
+      if (!sheet.hidden) {
+        syncCurrent(false);
+      }
+    }).observe(list, { subtree: true, attributes: true, attributeFilter: ["aria-current"] });
+    new MutationObserver(update).observe(outline, { attributes: true, attributeFilter: ["hidden"] });
+    new MutationObserver(update).observe(pane, { attributes: true, attributeFilter: ["hidden"] });
+    if (panel) {
+      new MutationObserver(function () {
+        if (!panel.hidden) {
+          setOpen(false);
+        }
+      }).observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    update();
+    return { setOpen: setOpen };
+  }
+
+  // The button and the sheet show only where the desktop shows no outline.
+  // Entries are larger than on the desktop, for a finger.
+  var outlineStyle = document.createElement("style");
+  outlineStyle.textContent =
+    ".outline-button, .outline-sheet { display: none; }" +
+    ":root:not([data-layout='wide']) .outline-button:not([hidden]) {" +
+    " display: flex; position: fixed; z-index: 25; right: 16px; bottom: 16px;" +
+    " width: 48px; height: 48px; align-items: center; justify-content: center;" +
+    " padding: 0; border: 1px solid var(--border); border-radius: 50%;" +
+    " background: var(--surface); color: var(--text-primary);" +
+    " box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); cursor: pointer; }" +
+    ".outline-button svg { width: 20px; height: 20px; fill: none;" +
+    " stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }" +
+    ":root:not([data-layout='wide']) .outline-sheet:not([hidden]) {" +
+    " display: block; position: fixed; z-index: 30; top: auto; right: 0; bottom: 0;" +
+    " left: 0; max-height: 60vh; overflow-y: auto; padding: 12px 16px 24px;" +
+    " background: var(--surface); border-top: 1px solid var(--border);" +
+    " border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2); }" +
+    ".outline-sheet-header { position: sticky; z-index: 1; top: -12px;" +
+    " display: flex; align-items: center; justify-content: space-between;" +
+    " margin: -12px 0 0; padding: 12px 0 8px; background: var(--surface); }" +
+    ".outline-sheet-header .outline-label { margin: 0; }" +
+    ".outline-sheet a { padding-top: 11px; padding-bottom: 11px; font-size: 15px; }";
+  document.head.appendChild(outlineStyle);
 }());

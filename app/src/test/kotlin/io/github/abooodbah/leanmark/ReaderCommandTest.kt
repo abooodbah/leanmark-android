@@ -55,6 +55,13 @@ class ReaderCommandTest {
     }
 
     @Test
+    fun theOutlineSheetReportsWhetherItIsOpen() {
+        assertEquals(ReaderCommand.Outline(true), ReaderCommand.parse("outline|open"))
+        assertEquals(ReaderCommand.Outline(false), ReaderCommand.parse("outline|closed"))
+        assertNull(ReaderCommand.parse("outline|maybe"))
+    }
+
+    @Test
     fun zoom() {
         assertEquals(ReaderCommand.Zoom(1), ReaderCommand.parse("zoom|in"))
         assertEquals(ReaderCommand.Zoom(-1), ReaderCommand.parse("zoom|out"))

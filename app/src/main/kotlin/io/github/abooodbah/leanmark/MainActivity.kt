@@ -102,6 +102,7 @@ class MainActivity : Activity() {
     private var stamp: Stamp? = null
     private var viewerOpen = false
     private var settingsOpen = false
+    private var outlineOpen = false
     private var backCallback: Any? = null
     private var awaitingFirstRender = true
     private var resumedOnce = false
@@ -115,9 +116,10 @@ class MainActivity : Activity() {
     internal val webViewForTest: WebView? get() = webView
     internal val viewerOpenForTest: Boolean get() = viewerOpen
     internal val settingsOpenForTest: Boolean get() = settingsOpen
+    internal val outlineOpenForTest: Boolean get() = outlineOpen
 
-    /** Back closes the figure viewer or the settings sheet before it leaves the app. */
-    private val overlayOpen: Boolean get() = viewerOpen || settingsOpen
+    /** Back closes the figure viewer or an open sheet before it leaves the app. */
+    private val overlayOpen: Boolean get() = viewerOpen || settingsOpen || outlineOpen
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -419,6 +421,7 @@ class MainActivity : Activity() {
                 port = null
                 readerReady = false
                 settingsOpen = false
+                outlineOpen = false
                 setViewerOpen(false)
                 view.destroy()
                 createWebView()
@@ -478,6 +481,10 @@ class MainActivity : Activity() {
             }
             is ReaderCommand.Settings -> {
                 settingsOpen = command.open
+                if (Build.VERSION.SDK_INT >= 33) updateBackCallback()
+            }
+            is ReaderCommand.Outline -> {
+                outlineOpen = command.open
                 if (Build.VERSION.SDK_INT >= 33) updateBackCallback()
             }
             is ReaderCommand.OpenLink -> followLink(command.href)

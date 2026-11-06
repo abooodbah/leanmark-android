@@ -44,7 +44,7 @@
    "old": "    \" :root[data-settings-open] .content-grid,\" +\n    \" :root[data-settings-open] .state-content { margin-right: 0; }\" +\n", "new": ""},
   {"name": "Back leaves the sheet open", "suite": "device", "tests": ["SettingsTest"],
    "file": "app/src/main/assets/reader/android-host.js",
-   "old": "      close.click();\n", "new": ""},
+   "old": "    } else if (settingsOpen()) {\n      document.getElementById(\"settingsClose\").click();\n", "new": "    } else if (settingsOpen()) {\n"},
   {"name": "Do not tell the app about the sheet", "suite": "device", "tests": ["SettingsTest"],
    "file": "app/src/main/assets/reader/android-host.js",
    "old": "    reportOpen(\"settingsPanel\", \"settings\");\n", "new": ""},
