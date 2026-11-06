@@ -213,8 +213,40 @@ phase_drawn() {
   echo NA
 }
 
+# Milliseconds from a light or dark switch to the page drawn in its new
+# colours, whichever way the build handles it, or NA.
+night_ms() {
+  local limit=$1 log value
+  for _ in $(seq 1 $((limit * 5))); do
+    log=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I")
+    value=$(sed -n -e 's/^page night \([0-9][0-9]*\) ms$/\1/p' -e 's/^phase drawn \([0-9][0-9]*\) ms$/\1/p' <<<"$log" | tail -n 1)
+    if [ -n "$value" ]; then echo "$value"; return; fi
+    sleep 0.2
+  done
+  echo NA
+}
+
+# Milliseconds from a light or dark switch until the diagrams are drawn
+# again: the page's own count for builds that recolour in place, the new
+# activity's steps up to the document sent plus the page's render for
+# builds that recreate it. NA if neither shows up.
+night_diagrams_ms() {
+  local limit=$1 log value sent render
+  for _ in $(seq 1 $((limit * 5))); do
+    log=$(adb logcat -d -v raw -s "${TIMING_TAG:-none}:I")
+    value=$(sed -n 's/^page scheme-diagrams \([0-9][0-9]*\) ms$/\1/p' <<<"$log" | tail -n 1)
+    if [ -n "$value" ]; then echo "$value"; return; fi
+    sent=$(sed -n 's/^phase document sent \([0-9][0-9]*\) ms$/\1/p' <<<"$log" | tail -n 1)
+    render=$(sed -n 's/^page render \([0-9][0-9]*\) ms$/\1/p' <<<"$log" | tail -n 1)
+    if [ -n "$sent" ] && [ -n "$render" ]; then echo $((sent + render)); return; fi
+    sleep 0.2
+  done
+  echo NA
+}
+
 # Page work on the open document: theme, zoom, rotation, a dark mode switch
 # and find. The page times each from the key to the result on screen.
+declare -A NIGHT_DIAGRAMS_MS=() NIGHT_SMALL_MS=()
 declare -A THEME_MS=() ZOOM_MS=() WIDTH_MS=() RESIZE_MS=() NIGHT_MS=() FIND_MS=()
 page_work() {
   local label=$1 before value
@@ -237,15 +269,30 @@ page_work() {
     sleep 3
   done
   RESIZE_MS[$label]=$(page_times resize 1 0)
-  # Dark mode on and off. Android recreates the activity, which reads and
-  # draws the file again; the new activity logs its own steps.
+  # Dark mode on and off. Builds before 0.2.0 let Android recreate the
+  # activity, which logs its own steps up to drawn; later ones recolour in
+  # place and log the time from the switch to the new colours on screen.
   for mode in yes no; do
     adb logcat -c
     adb shell cmd uimode night "$mode" >/dev/null
-    value=$(phase_drawn 90)
+    value=$(night_ms 90)
     NIGHT_MS[$label]+="$value"$'\n'
+    NIGHT_DIAGRAMS_MS[$label]+="$(night_diagrams_ms 90)"$'\n'
     sleep 3
   done
+  # The same on a document without diagrams.
+  open_document "$SMALL" "$SMALL_TYPE" >/dev/null
+  fully_drawn 30 >/dev/null
+  sleep 3
+  for mode in yes no; do
+    adb logcat -c
+    adb shell cmd uimode night "$mode" >/dev/null
+    NIGHT_SMALL_MS[$label]+="$(night_ms 60)"$'\n'
+    sleep 3
+  done
+  open_document "$LARGE" "$LARGE_TYPE" >/dev/null
+  fully_drawn 90 >/dev/null
+  sleep 5
   # Find: Ctrl+F, then a word typed into the find field.
   adb logcat -c
   adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_F >/dev/null 2>&1 || log "input keycombination failed"
@@ -383,7 +430,7 @@ row() {
   row "Janky frames over 10 swipes (software GPU, not a budget check)" "${jank[@]}"
   row "90th percentile frame time (software GPU, not a budget check)" "${p90[@]}"
   if [ "$WEBVIEW" = yes ]; then
-    small_allocated=(); allocated=(); java=(); native=(); theme=(); zoom=(); width=(); resize=(); night=(); find=()
+    small_allocated=(); allocated=(); java=(); native=(); theme=(); zoom=(); width=(); resize=(); night=(); night_diagrams=(); night_small=(); find=()
     for label in "${LABELS[@]}"; do
       small_allocated+=("${SMALL_ALLOCATED[$label]:-NA}")
       allocated+=("$(median <<<"${ALLOCATED[$label]:-}")")
@@ -394,6 +441,8 @@ row() {
       width+=("$(median <<<"${WIDTH_MS[$label]:-}")")
       resize+=("$(median <<<"${RESIZE_MS[$label]:-}")")
       night+=("$(median <<<"${NIGHT_MS[$label]:-}")")
+      night_diagrams+=("$(median <<<"${NIGHT_DIAGRAMS_MS[$label]:-}")")
+      night_small+=("$(median <<<"${NIGHT_SMALL_MS[$label]:-}")")
       find+=("$(median <<<"${FIND_MS[$label]:-}")")
     done
     row "Java allocations from start to $SMALL_NAME drawn (KB)" "${small_allocated[@]}"
@@ -405,7 +454,9 @@ row() {
     row "Text width step on $LARGE_NAME, key to drawn (ms, median of 3; phone held upright)" "${width[@]}"
     row "Find on $LARGE_NAME, last key to match count, with the page's 120 ms pause (ms)" "${find[@]}"
     row "Rotation on $LARGE_NAME, resize to drawn (ms, median)" "${resize[@]}"
-    row "Dark mode switch, activity recreated to $LARGE_NAME drawn (ms, median of 2)" "${night[@]}"
+    row "Dark mode switch to $LARGE_NAME drawn in the new colours (ms, median of 2)" "${night[@]}"
+    row "Dark mode switch on $LARGE_NAME until its diagrams are drawn again (ms, median of 2)" "${night_diagrams[@]}"
+    row "Dark mode switch to $SMALL_NAME drawn in the new colours (ms, median of 2)" "${night_small[@]}"
   fi
   steps() {
     local -n values=$1 names=$2

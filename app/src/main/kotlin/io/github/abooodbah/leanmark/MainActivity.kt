@@ -109,6 +109,8 @@ class MainActivity : Activity() {
     private var theme = "system"
     private var zoom = 1.0
     private var width = "narrow"
+    private var night = false
+    private var nightChangedAt = 0L
 
     /** Every request the WebView made that was refused. Read by the instrumented tests. */
     internal val blockedRequests = CopyOnWriteArrayList<String>()
@@ -129,6 +131,7 @@ class MainActivity : Activity() {
         // levels gives 100%. A missing width (0.1.x) gives Narrow.
         zoom = MarkdownCore.normalizeZoom(prefs.getFloat(KEY_ZOOM, 1f).toDouble())
         width = ReaderCommand.widthName(prefs.getString(KEY_WIDTH, null))
+        night = isNight()
 
         root = ReaderFrame(this, ScaleGestureDetector(this, Pinch()).apply { isQuickScaleEnabled = false })
         setContentView(root)
@@ -171,8 +174,14 @@ class MainActivity : Activity() {
         (source as? Source.FromUri)?.let { outState.putString(STATE_URI, it.uri.toString()) }
     }
 
+    // Rotation and a light or dark switch keep this activity, its WebView and
+    // the reading position. The page follows the system colour scheme itself
+    // when the theme is System; the bars and the window are recoloured here.
     override fun onConfigurationChanged(newConfig: Configuration) {
+        val wasNight = night
         super.onConfigurationChanged(newConfig)
+        night = isNight()
+        if (night != wasNight) nightChangedAt = SystemClock.uptimeMillis()
         applyBarColors()
     }
 
@@ -491,7 +500,14 @@ class MainActivity : Activity() {
             is ReaderCommand.CopySource -> copySource(command)
             is ReaderCommand.Viewer -> setViewerOpen(command.open)
             is ReaderCommand.Rendered -> if (awaitingFirstRender && !loading) reportDrawn()
-            is ReaderCommand.Timing -> Log.i(TIMING, "page ${command.name} ${command.milliseconds} ms")
+            is ReaderCommand.Timing -> {
+                Log.i(TIMING, "page ${command.name} ${command.milliseconds} ms")
+                // From the switch reaching the app to the new colours on screen.
+                if (command.name == "scheme" && nightChangedAt > 0) {
+                    Log.i(TIMING, "page night ${SystemClock.uptimeMillis() - nightChangedAt} ms")
+                    nightChangedAt = 0
+                }
+            }
         }
     }
 

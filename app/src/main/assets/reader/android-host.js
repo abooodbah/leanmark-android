@@ -168,6 +168,67 @@
     timeUntilDrawn("resize", performance.now());
   });
 
+  // When the phone switches between light and dark, the page's colours
+  // change at once through CSS, and reader.js then draws every diagram again,
+  // which can hold the next frame for seconds on a long document. Its
+  // handler runs after the next frame instead, so the new colours are on
+  // screen first. android-host.js runs before reader.js, so this wraps the
+  // list reader.js gets from matchMedia.
+  var realMatchMedia = window.matchMedia.bind(window);
+  window.matchMedia = function (query) {
+    var list = realMatchMedia(query);
+    if (query !== "(prefers-color-scheme: dark)" || !list.addEventListener) {
+      return list;
+    }
+    var add = list.addEventListener.bind(list);
+    list.addEventListener = function (type, listener, options) {
+      if (type !== "change") {
+        return add(type, listener, options);
+      }
+      // Two frames: the first paints the new colours, the second shows
+      // them, and only then the redraw starts.
+      return add(type, function (event) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            setTimeout(function () {
+              listener.call(list, event);
+            }, 0);
+          });
+        });
+      }, options);
+    };
+    return list;
+  };
+
+  // A light or dark switch of the phone, seen by the page: timed to the
+  // first frame in the new colours. Diagrams are drawn again after that, as
+  // they are when Android recreates the activity, so they are not waited for.
+  var colourScheme = realMatchMedia("(prefers-color-scheme: dark)");
+  var onScheme = function () {
+    var start = performance.now();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        send("timing|scheme|" + Math.round(performance.now() - start));
+      });
+    });
+    // And until the diagrams are drawn again: reader.js's handler runs in a
+    // task queued two frames on, so look after it.
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        setTimeout(function () {
+          setTimeout(function () {
+            timeUntilDrawn("scheme-diagrams", start);
+          }, 0);
+        }, 0);
+      });
+    });
+  };
+  if (colourScheme.addEventListener) {
+    colourScheme.addEventListener("change", onScheme);
+  } else {
+    colourScheme.addListener(onScheme);
+  }
+
   // The app posts exactly one port, right after the page loads. The page has
   // no frames and runs no document scripts, so nothing else can post here.
   window.addEventListener("message", function (event) {
