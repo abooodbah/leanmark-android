@@ -72,9 +72,14 @@ class HighlightTest {
         val before = (Reader.js(scenario, CURRENT) as Number).toInt()
         Reader.js(
             scenario,
-            "document.scrollingElement.style.overflowAnchor = 'none';" +
+            // Scroll anchoring would move the page to keep its content in
+            // place; it is turned off everywhere so the headings move.
+            "['html', 'body', '#readerPane', '.content-grid', '#mainContent', '#article'].forEach(function (s) {" +
+                " var e = document.querySelector(s); if (e) e.style.overflowAnchor = 'none'; });" +
+                "window.__scrollBefore = window.scrollY;" +
                 "document.querySelector('#article p').style.paddingTop = (innerHeight * 3) + 'px'",
         )
+        Reader.waitFor(scenario, "Math.abs(window.scrollY - window.__scrollBefore) < 2")
         waitForTheRightEntry(scenario)
         assertTrue("moved from $before", (Reader.js(scenario, CURRENT) as Number).toInt() < before)
     }
