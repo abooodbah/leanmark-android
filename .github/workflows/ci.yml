@@ -168,7 +168,7 @@ jobs:
         run: python3 scripts/check-store-graphics.py
 
   emulator:
-    name: Emulator tests (API ${{ matrix.api }})
+    name: Emulator tests (${{ matrix.label }})
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -176,12 +176,24 @@ jobs:
       matrix:
         # 26 is the minimum supported level, 34 a current one. The AOSP
         # "default" image for API 26 has no WebView, so that level uses the
-        # Google APIs image, which has WebView 69.
+        # Google APIs image, which has WebView 69. The tablet (1280 by 800
+        # dp) runs only the wide-screen tests; the rest assume a phone.
         include:
-          - api: 26
+          - label: API 26
+            api: 26
             target: google_apis
-          - api: 34
+            profile: pixel_6
+            tests: ""
+          - label: API 34
+            api: 34
             target: default
+            profile: pixel_6
+            tests: ""
+          - label: tablet, API 34
+            api: 34
+            target: default
+            profile: pixel_tablet
+            tests: io.github.abooodbah.leanmark.WideLayoutTest
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -225,19 +237,20 @@ jobs:
           target: ${{ matrix.target }}
           cores: 4
           arch: x86_64
-          profile: pixel_6
+          profile: ${{ matrix.profile }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: |
             df -h / && free -m
             adb shell dumpsys webviewupdate | grep -iE "current webview package|valid package" | tee webview.txt
-            ./gradlew --no-daemon :app:connectedDebugAndroidTest || { mkdir -p app/build/outputs/androidTest-results; adb logcat -d -v brief AndroidRuntime:E TestRunner:W LeanMarkPage:D chromium:W '*:S' | tail -n 150 > app/build/outputs/androidTest-results/logcat.txt; exit 1; }
+            ./gradlew --no-daemon :app:connectedDebugAndroidTest ${{ matrix.tests && format('-Pandroid.testInstrumentationRunnerArguments.class={0}', matrix.tests) || '' }} || { mkdir -p app/build/outputs/androidTest-results; adb logcat -d -v brief AndroidRuntime:E TestRunner:W WideLayoutTest:I LeanMarkPage:D chromium:W '*:S' | tail -n 150 > app/build/outputs/androidTest-results/logcat.txt; exit 1; }
+            adb logcat -d -v brief WideLayoutTest:I '*:S' | tee -a webview.txt
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: emulator-reports-api-${{ matrix.api }}
+          name: emulator-reports-${{ matrix.profile }}-api-${{ matrix.api }}
           path: |
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
