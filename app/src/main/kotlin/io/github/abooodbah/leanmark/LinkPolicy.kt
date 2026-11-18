@@ -4,7 +4,8 @@ package io.github.abooodbah.leanmark
 sealed interface LinkAction {
     /** Handed to another app, such as the browser or mail app. */
     data class External(val uri: String) : LinkAction
-    data class Refuse(val message: String) : LinkAction
+    /** Refused, with the string resource that says why. */
+    data class Refuse(val message: Int) : LinkAction
     data object Ignore : LinkAction
 
     companion object {
@@ -17,18 +18,15 @@ sealed interface LinkAction {
             if (match != null) {
                 return when (match.groupValues[1].lowercase()) {
                     "http", "https", "mailto" -> External(trimmed)
-                    else -> Refuse("That link scheme is blocked for safety.")
+                    else -> Refuse(R.string.link_scheme_blocked)
                 }
             }
             if (trimmed.startsWith("//")) {
-                return Refuse("That link scheme is blocked for safety.")
+                return Refuse(R.string.link_scheme_blocked)
             }
             // A shared file comes without access to the folder around it, so a
             // relative link has nothing to resolve against.
-            return Refuse(
-                "LeanMark can't follow links to other files on Android. " +
-                    "Open that file from your file manager.",
-            )
+            return Refuse(R.string.link_other_files)
         }
     }
 }

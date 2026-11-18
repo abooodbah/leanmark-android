@@ -17,6 +17,9 @@ sealed interface ReaderCommand {
     /** The settings sheet was opened or closed (android-host.js). */
     data class Settings(val open: Boolean) : ReaderCommand
 
+    /** The language chosen in the settings sheet, from desktop 0.8.0: "system", "en" or "zh-CN". */
+    data class Language(val value: String) : ReaderCommand
+
     /** The "On this page" sheet was opened or closed (android-host.js). */
     data class Outline(val open: Boolean) : ReaderCommand
 
@@ -50,6 +53,7 @@ sealed interface ReaderCommand {
             return when (name) {
                 "theme" -> Theme(themeName(rest))
                 "width" -> Width(widthName(rest))
+                "language" -> Language(InterfaceLanguage.settingName(rest))
                 "zoom" -> when (rest.lowercase()) {
                     "in" -> Zoom(1)
                     "out" -> Zoom(-1)

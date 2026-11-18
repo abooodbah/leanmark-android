@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The reader page's name for the language Android picks for the app
+         from the phone's languages: "en", or "zh-CN" from values-zh-rCN.
+         The System setting follows it. -->
+    <string name="interface_language">en</string>
+</resources>

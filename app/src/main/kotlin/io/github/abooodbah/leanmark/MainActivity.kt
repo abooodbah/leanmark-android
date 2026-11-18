@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
@@ -46,6 +47,7 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -80,7 +82,14 @@ class MainActivity : Activity() {
          */
         class Document(val name: String, val path: String, val bytes: Long, var fields: ByteArray?) : Shown
 
-        class Failed(val name: String, val message: String) : Shown
+        /**
+         * [messageId] is the app's own message, written in the interface
+         * language each time it is sent; [coreMessage] is the core's, which
+         * is the desktop's English and is translated by the page.
+         */
+        class Failed(val name: String, val messageId: Int, val coreMessage: String? = null) : Shown {
+            fun message(strings: Resources): String = coreMessage ?: strings.getString(messageId)
+        }
     }
 
     /** What a document looked like when it was opened, to notice changes on return. */
@@ -109,6 +118,13 @@ class MainActivity : Activity() {
     private var theme = "system"
     private var zoom = 1.0
     private var width = "narrow"
+    private var language = "system"
+
+    /** The app's own strings in the interface language. Read on the worker too. */
+    @Volatile private lateinit var strings: Resources
+
+    /** The page as loaded, with its language; in-page #anchors stay on it. */
+    private var pageUrl = ReaderAssets.PAGE_URL
     private var night = false
     private var nightChangedAt = 0L
 
@@ -131,6 +147,9 @@ class MainActivity : Activity() {
         // levels gives 100%. A missing width (0.1.x) gives Narrow.
         zoom = MarkdownCore.normalizeZoom(prefs.getFloat(KEY_ZOOM, 1f).toDouble())
         width = ReaderCommand.widthName(prefs.getString(KEY_WIDTH, null))
+        // Settings from 0.2.0 have no language: the app follows the phone.
+        language = InterfaceLanguage.settingName(prefs.getString(KEY_LANGUAGE, null))
+        strings = localized()
         night = isNight()
 
         root = ReaderFrame(this, ScaleGestureDetector(this, Pinch()).apply { isQuickScaleEnabled = false })
@@ -145,7 +164,7 @@ class MainActivity : Activity() {
 
         val provider = WebView.getCurrentWebViewPackage()?.versionName
         if (!WebViewSupport.isSupported(provider)) {
-            showUnsupported(WebViewSupport.message(provider))
+            showUnsupported(webViewNeeded(provider))
             return
         }
         try {
@@ -153,7 +172,7 @@ class MainActivity : Activity() {
             phase("webview created")
         } catch (error: RuntimeException) {
             // Thrown when the WebView provider is missing or being updated.
-            showUnsupported(WebViewSupport.message(null))
+            showUnsupported(webViewNeeded(null))
         }
     }
 
@@ -226,7 +245,7 @@ class MainActivity : Activity() {
             Intent.ACTION_SEND -> sharedStream(intent)?.let { Source.FromUri(it) }
                 ?: intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.let { text ->
                     val name = intent.getStringExtra(Intent.EXTRA_SUBJECT)
-                        ?.takeIf { it.isNotBlank() } ?: "Shared text"
+                        ?.takeIf { it.isNotBlank() } ?: strings.getString(R.string.shared_text)
                     Source.FromText(text.toString().toByteArray(Charsets.UTF_8), name)
                 }
             else -> null
@@ -278,14 +297,14 @@ class MainActivity : Activity() {
             }
             Shown.Document(name, path, bytes.size.toLong(), fields)
         } catch (error: DocumentReader.TooLargeException) {
-            Shown.Failed(name, DocumentReader.TOO_LARGE)
+            Shown.Failed(name, R.string.too_large)
         } catch (error: MarkdownException) {
-            Shown.Failed(name, error.message ?: CANNOT_PARSE)
+            Shown.Failed(name, R.string.cannot_parse, error.message)
         } catch (error: OutOfMemoryError) {
-            Shown.Failed(name, TOO_LARGE_FOR_DEVICE)
+            Shown.Failed(name, R.string.too_large_for_device)
         } catch (error: Exception) {
             // FileNotFoundException, SecurityException and other provider failures.
-            Shown.Failed(name, CANNOT_READ)
+            Shown.Failed(name, R.string.cannot_read)
         }
     }
 
@@ -305,7 +324,7 @@ class MainActivity : Activity() {
         is Source.FromText -> from.name
         is Source.FromUri -> queryString(from.uri, OpenableColumns.DISPLAY_NAME)
             ?: from.uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
-            ?: "Untitled.md"
+            ?: strings.getString(R.string.untitled)
     }
 
     private fun querySize(uri: Uri): Long? = queryLong(uri, OpenableColumns.SIZE)
@@ -382,7 +401,8 @@ class MainActivity : Activity() {
         webView = view
         portPosted = false
         readerReady = false
-        view.loadUrl(ReaderAssets.PAGE_URL)
+        pageUrl = ReaderAssets.pageUrl(interfaceLanguage())
+        view.loadUrl(pageUrl)
     }
 
     private inner class ReaderClient : WebViewClient() {
@@ -406,7 +426,7 @@ class MainActivity : Activity() {
         // still tries to navigate is refused, except moving to an #anchor.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url.toString()
-            return !(url.substringBefore('#') == ReaderAssets.PAGE_URL && url.contains('#'))
+            return !(url.substringBefore('#') == pageUrl && url.contains('#'))
         }
 
         override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
@@ -472,7 +492,7 @@ class MainActivity : Activity() {
             ReaderCommand.Ready -> {
                 readerReady = true
                 phase("reader ready")
-                send(HostMessages.host((zoom * 100).roundToInt(), width))
+                send(HostMessages.host((zoom * 100).roundToInt(), width, language, systemLanguage()))
                 sendCurrentView()
             }
             ReaderCommand.OpenFile -> pickDocument()
@@ -487,6 +507,14 @@ class MainActivity : Activity() {
             is ReaderCommand.Width -> {
                 width = command.value
                 prefs.edit().putString(KEY_WIDTH, width).apply()
+            }
+            is ReaderCommand.Language -> {
+                // The page has already switched; the app's own strings follow
+                // from the next message, and an error on screen is sent again.
+                language = command.value
+                prefs.edit().putString(KEY_LANGUAGE, language).apply()
+                strings = localized()
+                if (shown is Shown.Failed) sendCurrentView()
             }
             is ReaderCommand.Settings -> {
                 settingsOpen = command.open
@@ -525,7 +553,7 @@ class MainActivity : Activity() {
                     current.fields = null
                 }
             }
-            is Shown.Failed -> send(HostMessages.error(theme, current.name, current.message))
+            is Shown.Failed -> send(HostMessages.error(theme, current.name, current.message(strings)))
         }
     }
 
@@ -587,7 +615,7 @@ class MainActivity : Activity() {
             @Suppress("DEPRECATION")
             startActivityForResult(pick, REQUEST_OPEN)
         } catch (error: ActivityNotFoundException) {
-            send(HostMessages.status("This device has no file picker.", "error"))
+            send(HostMessages.status(strings.getString(R.string.no_file_picker), "error"))
         }
     }
 
@@ -598,9 +626,9 @@ class MainActivity : Activity() {
                     Intent(Intent.ACTION_VIEW, Uri.parse(action.uri)).addCategory(Intent.CATEGORY_BROWSABLE),
                 )
             } catch (error: ActivityNotFoundException) {
-                send(HostMessages.status("No app on this device can open that link.", "warning"))
+                send(HostMessages.status(strings.getString(R.string.no_app_for_link), "warning"))
             }
-            is LinkAction.Refuse -> send(HostMessages.status(action.message, "warning"))
+            is LinkAction.Refuse -> send(HostMessages.status(strings.getString(action.message), "warning"))
             LinkAction.Ignore -> Unit
         }
     }
@@ -609,7 +637,7 @@ class MainActivity : Activity() {
         val from = source
         if (from == null || shown !is Shown.Document) {
             send(HostMessages.copied(command.requestId, false))
-            send(HostMessages.status("Open a document before copying.", "warning"))
+            send(HostMessages.status(strings.getString(R.string.open_before_copying), "warning"))
             return
         }
         worker.execute {
@@ -627,11 +655,11 @@ class MainActivity : Activity() {
                 stale = error.stale
                 problem = error.message
             } catch (error: DocumentReader.TooLargeException) {
-                problem = DocumentReader.TOO_LARGE
+                problem = strings.getString(R.string.too_large)
             } catch (error: Exception) {
-                problem = CANNOT_READ
+                problem = strings.getString(R.string.cannot_read)
             } catch (error: OutOfMemoryError) {
-                problem = TOO_LARGE_FOR_DEVICE
+                problem = strings.getString(R.string.too_large_for_device)
             }
             main.post {
                 if (isDestroyed) return@post
@@ -640,16 +668,10 @@ class MainActivity : Activity() {
                 when {
                     stale -> {
                         open(from)
-                        send(
-                            HostMessages.status(
-                                "The file changed since LeanMark opened it, so it was reloaded. " +
-                                    "Copy again to get the current text.",
-                                "warning",
-                            ),
-                        )
+                        send(HostMessages.status(strings.getString(R.string.changed_copy_again), "warning"))
                     }
                     problem != null -> send(HostMessages.status(problem!!, "warning"))
-                    !copied -> send(HostMessages.status("That section is too large to copy.", "warning"))
+                    !copied -> send(HostMessages.status(strings.getString(R.string.section_too_large), "warning"))
                 }
             }
         }
@@ -743,6 +765,33 @@ class MainActivity : Activity() {
         }
     }
 
+    // Language
+
+    /**
+     * The language Android picks for the app from the phone's languages, as
+     * the page names it: "zh-CN" when values-zh-rCN applies (zh-CN, zh-SG,
+     * zh-Hans, zh), otherwise "en". The activity's own resources are never
+     * given the chosen language, so they keep following the phone.
+     */
+    private fun systemLanguage(): String = resources.getString(R.string.interface_language)
+
+    private fun interfaceLanguage(): String = InterfaceLanguage.resolve(language, systemLanguage())
+
+    /** Resources for the app's own strings in the chosen language, or the phone's. */
+    private fun localized(): Resources {
+        if (language == "system") return resources
+        val config = Configuration(resources.configuration)
+        config.setLocale(Locale.forLanguageTag(language))
+        return createConfigurationContext(config).resources
+    }
+
+    private fun webViewNeeded(provider: String?): String =
+        strings.getString(
+            R.string.webview_needed,
+            WebViewSupport.MINIMUM_MAJOR,
+            WebViewSupport.found(provider) ?: strings.getString(R.string.webview_none),
+        )
+
     private fun isNight(): Boolean =
         resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
@@ -787,6 +836,7 @@ class MainActivity : Activity() {
         const val KEY_THEME = "theme"
         const val KEY_ZOOM = "zoom"
         const val KEY_WIDTH = "width"
+        const val KEY_LANGUAGE = "language"
 
         // The ends of the core's zoom levels (kZoomLevels).
         const val MIN_ZOOM = 0.5
@@ -804,11 +854,5 @@ class MainActivity : Activity() {
         )
 
         val PICKER_TYPES = arrayOf("text/markdown", "text/x-markdown", "text/plain", "application/octet-stream")
-
-        const val CANNOT_READ =
-            "LeanMark could not read this file. The app that shared it may have " +
-                "withdrawn access. Open it again from that app."
-        const val CANNOT_PARSE = "LeanMark could not parse this Markdown document."
-        const val TOO_LARGE_FOR_DEVICE = "This file is too large to show on this device."
     }
 }

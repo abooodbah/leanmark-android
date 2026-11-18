@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified Chinese from desktop LeanMark 0.8.0 (assets/reader.js), word
+     for word, for the app's strings whose English the desktop translates.
+     Android uses these for zh-CN, zh-SG, zh-Hans and zh. -->
+<resources>
+    <string name="cannot_parse">LeanMark 无法解析此 Markdown 文档。</string>
+    <string name="too_large">此文件超过了 LeanMark 的 32 MB 安全上限。如需查看原始文本，请在编辑器中打开。</string>
+    <string name="open_before_copying">请先打开文档再复制。</string>
+</resources>

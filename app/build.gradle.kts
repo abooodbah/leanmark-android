@@ -97,6 +97,15 @@ android {
         includeInBundle = true
     }
 
+    // The Language choice can show Chinese on a phone set to English. From a
+    // bundle, Google Play installs only the phone's own languages, so the
+    // strings stay in the base APK instead of language splits.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = false
     }

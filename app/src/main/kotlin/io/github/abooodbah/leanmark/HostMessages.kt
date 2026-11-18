@@ -8,8 +8,11 @@ object HostMessages {
     // This host reads the file again for Copy, so copies are exact Markdown. It
     // shows one document per window, so there are no tabs. The saved zoom and
     // text width come with it, before the first document, as on the desktop.
-    fun host(zoomPercent: Int, width: String) =
-        """{"type":"host","copySource":true,"tabs":false,"zoom":$zoomPercent,"width":${Json.quote(width)}}"""
+    // The language setting and the phone's language show the Language group
+    // in the settings sheet, as the Windows host does (desktop 0.8.0).
+    fun host(zoomPercent: Int, width: String, language: String, systemLanguage: String) =
+        """{"type":"host","copySource":true,"tabs":false,"zoom":$zoomPercent,"width":${Json.quote(width)},""" +
+            """"language":${Json.quote(language)},"systemLanguage":${Json.quote(systemLanguage)}}"""
 
     fun empty(theme: String) = """{"type":"empty","theme":${Json.quote(theme)}}"""
 

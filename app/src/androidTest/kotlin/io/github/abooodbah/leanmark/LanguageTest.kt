@@ -89,6 +89,7 @@ class LanguageTest {
             assertTrue(pageUrl(scenario), pageUrl(scenario).endsWith("/reader.html?lang=zh-CN"))
             assertEquals("zh-CN", Reader.js(scenario, "document.documentElement.lang"))
             assertEquals(CHINESE, Reader.js(scenario, LABELS))
+            assertEquals("本页内容", Reader.text(scenario, "#outlineSheetTitle"))
             Reader.swipeUp(scenario)
             Reader.waitFor(scenario, "window.scrollY > 100")
             scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
