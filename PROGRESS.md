@@ -23,6 +23,15 @@ Updated with every merge. The next session starts here.
   (2026-10-30, the first APK signed with the stable release key). The
   "Release files" workflow attaches the APK, the bundle and their sums; the
   "Play bundle" workflow builds the upload-key bundle as an artifact.
+- Build provenance attestations (PR #33): the "Release files" job may
+  request an OIDC token and write attestations, and runs
+  `actions/attest-build-provenance` v4.2.2 (pinned to 4d10147) on
+  `LeanMark-<version>.apk` and `.aab` after they are signed, checked and
+  hashed, before they are attached. The release is created as a draft and
+  published after the run. `scripts/check-release-workflow.py` checks this
+  in CI, since the workflow runs only for a tag; it has not run for a tag
+  yet. The README says how to check a download with `gh attestation
+  verify`.
 - CI: lint, JVM tests, the desktop core's tests (ctest), release APK and
   bundle, the permission check, instrumented tests on API 26 (WebView 69)
   and API 34 (WebView 113), budgets against the base branch and an empty
@@ -72,10 +81,41 @@ Updated with every merge. The next session starts here.
 - v0.2.0 is tagged at b4f61a3 and released with its APK, bundle, debug
   APK, empty app, phone test files and a `.sha256` for each (made from the
   maintainer's computer).
+- 0.3.0 plan (PR #30), below.
+- Reader files and core from desktop v0.8.0 (PR #31, 0b13685), with
+  `scripts/update-reader-assets.sh`; Mermaid and the fonts are unchanged.
+  A document without an outline now gets its text column from 1180 px
+  wide: on the tablet emulator (pixel_tablet, API 34) in landscape the page
+  is 1280 px and the column went from 220 to 720 px. `WideLayoutTest` runs
+  on the phones and in a new tablet emulator job. A theme change redraws
+  diagrams only when their colours change: the theme switch on large.md
+  went from 9,849 to 5,271 ms and from 8,541 to 4,112 ms (run 44313165483,
+  two attempts). The Language group of the settings panel stays hidden
+  until the app reports a language.
+- Simplified Chinese interface (PR #32), from desktop 0.8.0. The page
+  opens as `reader.html?lang=en` or `?lang=zh-CN`, so its first paint is
+  in the interface language; the host message names the setting and the
+  phone's language, which shows the Language group (System, English,
+  简体中文) in the sheet. A choice is saved as `language`; settings from
+  0.2.0 have none and follow the phone. System follows the language
+  Android picks for the app (zh-CN, zh-SG, zh-Hans and zh give Chinese;
+  Traditional Chinese gives English), including a per-app language on
+  Android 13. The app's own text moved to string resources:
+  `values-zh-rCN` has the desktop's Chinese for the three strings the
+  desktop translates (`cannot_parse`, `too_large`,
+  `open_before_copying`). These have no desktop translation and stay
+  English: `cannot_read`, `too_large_for_device`, `no_file_picker`,
+  `no_app_for_link`, `changed_copy_again`, `section_too_large`,
+  `link_scheme_blocked`, `link_other_files`, `shared_text`, `untitled`,
+  `webview_needed`, `webview_none`. The strings android-host.js adds use
+  the desktop's keys. The bundle keeps every language in the base APK, so
+  a phone set to English can show the Chinese strings; CI checks it. APK
+  2,258,929 to 2,261,401 bytes. Tests: `LanguageTest` (11),
+  `InterfaceLanguageTest` (11).
 
 ## In progress
 
-- 0.3.0, step 1: this plan.
+- 0.3.0, step 3: stop sending a chosen theme back to the page (#34).
 
 ## Plan for 0.3.0
 
@@ -196,7 +236,7 @@ Findings. Numbers are from run 41981714168 (PR #16) unless a PR is named.
 | --- | --- | ---: | --- | --- |
 | Native library (`CMakeLists.txt`) | The C++ runtime exported 1,975 symbols, so the linker kept all of its code | APK 4,103,101 bytes; arm64 `.so` 1,113,648 bytes | Export only the JNI entry points (version script) | Fixed in #17: APK 2,253,125 bytes, arm64 `.so` 411,128, arm64 download 1,497,097 to 1,294,523 |
 | APK (`build.gradle.kts`) | Kotlin metadata files nothing reads | 13,728 bytes | Leave them out of packaging | Fixed in #18 |
-| Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours | 5,228 ms on large.md (11 diagrams) | Desktop reader code. Desktop LeanMark plans to skip the redraw when a theme change keeps the diagram colours; it comes with the next reader update | For the desktop |
+| Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours, and again when the app sends the theme back | 5,228 ms on large.md (11 diagrams) | Desktop 0.7.0 skips the redraw when the diagram colours stay the same | Fixed with the v0.8.0 reader files in #31: 9,849 to 5,271 ms and 8,541 to 4,112 ms (run 44313165483) |
 | Zoom (`WebSettings.textZoom`) | Enlarges the toolbar too and lays the whole page out again | 786 ms per step on large.md | The reader zooms only the document (desktop 0.6.0) | Replaced in #19: 1,405 to 1,144 ms per step (run 41987196578) |
 | Dark mode switch (manifest `configChanges`) | Android recreates the activity: the file is read, parsed and drawn again | 1,245 ms to drawn on large.md, against 167 ms for a rotation | Handle `uiMode` in the activity | Fixed in #28: first frame 1,369 to 1,198 ms, diagrams 4,550 to 3,228 ms, position kept |
 | Opening large.md in the page | Mermaid draws 11 diagrams after the text is on screen | Text drawn 1,349 ms after creation; diagrams done 3,561 ms after the document arrives | Desktop reader code (Mermaid). The text is readable before the diagrams | No change |
@@ -220,6 +260,16 @@ need a phone to verify, so they are not clear wins.
   these need the maintainer's account.
 
 ## Known gaps
+
+- The tablet emulator job runs only `WideLayoutTest`; the other tests
+  assume a phone. On that tablet Android 14 letterboxes the app when it
+  asks for portrait, so the test's portrait page is 463 px wide.
+- The Chinese text has not been reviewed by a native speaker, as on the
+  desktop. Traditional Chinese keeps English. The twelve app strings
+  listed under Done stay English in a Chinese interface, and text inside
+  Mermaid diagrams, the store texts, the fastlane texts and the site are
+  English.
+- The per-app language test needs Android 13, so it runs on API 34 only.
 
 - On a phone held upright the three text widths look the same: the screen
   is narrower than the 720 px column. They differ in landscape, on tablets

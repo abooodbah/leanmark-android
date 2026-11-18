@@ -135,6 +135,7 @@ class MainActivity : Activity() {
     internal val viewerOpenForTest: Boolean get() = viewerOpen
     internal val settingsOpenForTest: Boolean get() = settingsOpen
     internal val outlineOpenForTest: Boolean get() = outlineOpen
+    internal val stringsForTest: Resources get() = strings
 
     /** Back closes the figure viewer or an open sheet before it leaves the app. */
     private val overlayOpen: Boolean get() = viewerOpen || settingsOpen || outlineOpen

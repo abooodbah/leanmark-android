@@ -156,13 +156,21 @@ class HighlightTest {
         }
 
     /**
-     * Scrolls to [fraction] of the page and waits until the page is there:
-     * the reader scrolls a new document to the top on its next frame, which
-     * can undo a scroll made just after the document appears.
+     * Scrolls to [fraction] of the page and waits until the page has stayed
+     * there for 300 ms: the reader scrolls a new document to the top on its
+     * next frame, which can undo a scroll made just after the document
+     * appears, even after the page was seen at the target once.
      */
     private fun scrollTo(scenario: ActivityScenario<MainActivity>, fraction: Double) {
         val target = "Math.round((document.documentElement.scrollHeight - innerHeight) * $fraction)"
-        Reader.waitFor(scenario, "(function () { window.scrollTo(0, $target); return Math.abs(window.scrollY - $target) < 2; })()")
+        Reader.js(scenario, "window.__scrolledAt = 0")
+        Reader.waitFor(
+            scenario,
+            "(function () { if (Math.abs(window.scrollY - $target) >= 2) { window.scrollTo(0, $target);" +
+                " window.__scrolledAt = performance.now(); return false; }" +
+                " if (!window.__scrolledAt) { window.__scrolledAt = performance.now(); return false; }" +
+                " return performance.now() - window.__scrolledAt > 300; })()",
+        )
     }
 
     private fun waitForTheRightEntry(scenario: ActivityScenario<MainActivity>) =

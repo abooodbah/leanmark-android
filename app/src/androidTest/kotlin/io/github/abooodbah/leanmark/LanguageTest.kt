@@ -125,6 +125,32 @@ class LanguageTest {
         }
     }
 
+    /**
+     * The page also translates the desktop's English sentences itself, so
+     * this reads the app's own strings, the ones it sends.
+     */
+    @Test
+    fun theAppsOwnStringsFollowTheLanguage() {
+        assumeEnglishPhone()
+        Reader.open("simple.md").use { scenario ->
+            Reader.waitForDocument(scenario)
+            assertEquals("Open a document before copying.", appString(scenario, R.string.open_before_copying))
+            openSheet(scenario)
+            Reader.js(scenario, "document.querySelector('input[name=settings-language][value=\"zh-CN\"]').click()")
+            waitForSaved("language", "zh-CN")
+            val deadline = SystemClock.uptimeMillis() + 5_000
+            while (appString(scenario, R.string.open_before_copying) != OPEN_FIRST_CHINESE && SystemClock.uptimeMillis() < deadline) {
+                SystemClock.sleep(50)
+            }
+            assertEquals(OPEN_FIRST_CHINESE, appString(scenario, R.string.open_before_copying))
+            assertEquals("no desktop translation", "This device has no file picker.", appString(scenario, R.string.no_file_picker))
+        }
+        Reader.open("simple.md").use { scenario ->
+            Reader.waitForDocument(scenario)
+            assertEquals(OPEN_FIRST_CHINESE, appString(scenario, R.string.open_before_copying))
+        }
+    }
+
     @Test
     fun aFileOverTheLimitIsRefusedInChinese() {
         prefs.edit().putString("language", "zh-CN").commit()
@@ -207,6 +233,12 @@ class LanguageTest {
         assertNull(prefs.getString("language", null))
     }
 
+    private fun appString(scenario: ActivityScenario<MainActivity>, id: Int): String {
+        var text = ""
+        scenario.onActivity { text = it.stringsForTest.getString(id) }
+        return text
+    }
+
     private fun resource(tag: String, name: String): String {
         val config = Configuration(Reader.context.resources.configuration)
         config.setLocale(Locale.forLanguageTag(tag))
@@ -265,6 +297,8 @@ class LanguageTest {
 
         const val CHECKED_LANGUAGE =
             "(document.querySelector('input[name=settings-language]:checked') || {}).value || ''"
+
+        const val OPEN_FIRST_CHINESE = "请先打开文档再复制。"
 
         const val TOO_LARGE_CHINESE = "此文件超过了 LeanMark 的 32 MB 安全上限。如需查看原始文本，请在编辑器中打开。"
     }
