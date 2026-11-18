@@ -61,6 +61,23 @@ class WideLayoutTest {
     }
 
     @Test
+    fun aDocumentWithoutAnOutlineAfterOneWithAnOutlineGetsTheFullColumn() = Reader.open("showcase.md").use { scenario ->
+        Reader.waitForDocument(scenario)
+        widen(scenario, 1300)
+        Reader.waitFor(scenario, "getComputedStyle(document.getElementById('outline')).display === 'block'")
+        // The next file arrives in the same activity and page, as from the
+        // file manager while LeanMark is open.
+        scenario.onActivity { activity ->
+            Reader.instrumentation.callActivityOnNewIntent(activity, Reader.viewIntent(FixtureProvider.uri("simple.md")))
+        }
+        Reader.waitFor(scenario, "document.getElementById('fileName').textContent === 'simple.md'")
+        Reader.waitForDocument(scenario)
+        Reader.waitFor(scenario, "document.getElementById('outline').hidden")
+        assertEquals(720, articleWidth(scenario))
+        assertCentred(scenario, "narrow after a document with an outline")
+    }
+
+    @Test
     fun inLandscapeADocumentWithoutAnOutlineFillsItsColumn() = Reader.open("simple.md").use { scenario ->
         Reader.waitForDocument(scenario)
         scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
