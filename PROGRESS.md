@@ -121,10 +121,42 @@ Updated with every merge. The next session starts here.
   diagram again; the v0.8.0 reader already skips that redraw, so the theme
   switch on large.md stays the same: 4,181 against 4,145 ms (run
   44318726659).
+- Version 0.3.0 (versionCode 5): `CHANGELOG.md` (new, back to 0.1.0),
+  notes in `docs/releases/v0.3.0.md`,
+  `fastlane/metadata/android/en-US/changelogs/5.txt`, and two README
+  lines on the interface languages and the changelog. Against v0.2.0
+  (draft #36, run 44330585001, two attempts): APK 2,251,229 to 2,261,389
+  bytes; theme switch on large.md 5,804 and 8,165 to 3,158 and 4,388 ms;
+  simple.md drawn less the empty app 172 and 432 to 156 and 412 ms; total
+  PSS after large.md 389,605 and 397,726 to 393,418 and 399,873 KB.
 
 ## In progress
 
-- 0.3.0, step 6: version 0.3.0.
+- The v0.3.0 tag, the release and its files. This session cannot create
+  tags, so they are made from the maintainer's computer: see "Releasing
+  0.3.0" below.
+
+## Releasing 0.3.0
+
+After the version bump is merged, from a clone of main at that commit:
+
+```sh
+git tag -a v0.3.0 -F docs/releases/v0.3.0.md
+git push origin v0.3.0
+gh release create v0.3.0 --draft --title "LeanMark 0.3.0" --notes-file docs/releases/v0.3.0.md
+gh workflow run release.yml -f tag=v0.3.0
+# When the run has attested and attached the files:
+gh release edit v0.3.0 --draft=false
+gh workflow run play-bundle.yml -f tag=v0.3.0
+```
+
+The "Release files" run attests `LeanMark-0.3.0.apk` and
+`LeanMark-0.3.0.aab`, then attaches them with `LeanMark-0.3.0-debug.apk`,
+`empty-app.apk`, `LeanMark-0.3.0-phone-test-files.zip` and a `.sha256` for
+each. Check a file with
+`gh attestation verify LeanMark-0.3.0.apk --repo abooodbah/leanmark-android`.
+The "Play bundle" run keeps `LeanMark-0.3.0-play.aab` and its `.sha256` as
+a workflow artifact for 7 days; nothing is uploaded to Google Play.
 
 ## Plan for 0.3.0
 
@@ -303,30 +335,32 @@ need a phone to verify, so they are not clear wins.
 
 ## Measured numbers
 
-From the budgets job on an API 34 emulator (SwiftShader, no GPU) for PR #14,
-run 41019995503, main at the time ("base"). The empty app took 597 ms to
-its first frame there.
+0.3.0 against v0.2.0, from the budgets job on an API 34 emulator
+(SwiftShader, no GPU), release builds measured in turns, draft #36, run
+44330585001, attempts 1 and 2. Sizes from the build job of main at
+be4e78d (run 44336902352), the same code as 0.3.0 but the version.
 
-| Measure | Value |
-| --- | ---: |
-| Release APK, all ABIs | 4,103,101 bytes |
-| Release bundle | 3,389,425 bytes |
-| What Play delivers to an arm64-v8a phone | 2,311,734 bytes installed, 1,497,097 download |
-| First frame minus the empty app, simple.md | 59 ms |
-| Document drawn minus the empty app's first frame, simple.md | 292 ms |
-| large.md drawn after a cold start | 2,680 ms |
-| Total PSS after simple.md, app and renderer | 114,263 KB |
-| App PSS after large.md | 79,139 KB |
-| WebView renderer PSS after large.md | 323,268 KB |
-| Total PSS after large.md | 402,262 KB |
+| Measure | 0.2.0 | 0.3.0 |
+| --- | ---: | ---: |
+| Release APK, all ABIs (bytes) | 2,251,229 | 2,261,389 |
+| Release bundle (bytes) | 2,062,283 (0.2.0 release PR) | 2,075,505 |
+| What Play delivers to an arm64-v8a phone (bytes) | 1,612,006 installed, 1,294,807 download (0.2.0 release PR) | 1,625,706 installed, 1,305,743 download |
+| simple.md drawn minus the empty app's first frame (ms) | 172, 432 | 156, 412 |
+| large.md drawn after a cold start (ms) | 1,499, 2,715 | 1,736, 2,655 |
+| Total PSS after large.md, app and renderer (KB) | 389,605, 397,726 | 393,418, 399,873 |
+| WebView renderer PSS after large.md (KB) | 314,865, 322,732 | 315,960, 322,879 |
+| Janky frames over 10 swipes (software GPU) | 79.29%, 87.03% | 87.80%, 87.85% |
+| Theme switch on large.md, key to drawn (ms) | 5,804, 8,165 | 3,158, 4,388 |
+| Rotation on large.md (ms) | 153, 184 | 160, 215 |
 
-Where the start time goes with simple.md (ms from the activity's
-creation): WebView created 215, page loaded 622, reader ready and document
-sent 623, document drawn 694.
+Start time, open time, rotation and jank move by more than these
+differences between runs of the same build on this emulator; see the PR
+bodies of #31, #32 and #34 for further samples. The phone budget needs a
+real phone.
 
-Tests on main: 26 JVM tests, the desktop core's test program (7 groups),
-38 instrumented tests on API 34 (all pass) and on API 26 (35 pass, 3 need
-WebView 94 and are skipped).
+Tests on main (be4e78d): 44 JVM tests, the desktop core's test program (9
+groups), 91 instrumented tests on API 34 (all pass), 91 on API 26 (83
+pass, 8 skipped because they need WebView 94 or Android 13), and 4 `WideLayoutTest` tests on the tablet emulator.
 
 ## Phone test
 
@@ -338,13 +372,13 @@ minutes.
 
 From the release page on GitHub, download onto the phone:
 
-- `LeanMark-0.2.0.apk`: the release build (minified), signed with the
+- `LeanMark-0.3.0.apk`: the release build (minified), signed with the
   release key. Use this one for timing.
-- `LeanMark-0.2.0-debug.apk`: the debug build, for comparison only. It is
+- `LeanMark-0.3.0-debug.apk`: the debug build, for comparison only. It is
   slower by design.
 - `empty-app.apk`: an app with one empty screen, for the start-time
   baseline with adb (it has no launcher icon).
-- `LeanMark-0.2.0-phone-test-files.zip`: the files below. Unzip it into
+- `LeanMark-0.3.0-phone-test-files.zip`: the files below. Unzip it into
   Downloads.
 
 Open the APK from the browser's downloads or the Files app and allow the

@@ -4,7 +4,11 @@ A read-only viewer for Markdown files on Android. It is the Android companion
 to the desktop app at https://github.com/abooodbah/leanmark and shows
 documents with the same reader page.
 
-Work in progress. Not yet on Google Play.
+The interface is in English or Simplified Chinese. It follows the phone's
+language, or the Language choice in the settings sheet.
+
+Work in progress. Not yet on Google Play. The changes in each version are
+in [CHANGELOG.md](CHANGELOG.md).
 
 ## Try it (closed test)
 
