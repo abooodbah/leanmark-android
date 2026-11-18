@@ -1,5 +1,6 @@
 package io.github.abooodbah.leanmark
 
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.util.Log
 import androidx.test.core.app.ActivityScenario
@@ -58,6 +59,31 @@ class WideLayoutTest {
         val article = (Reader.js(scenario, "Math.round(document.getElementById('article').getBoundingClientRect().left)") as Number).toInt()
         assertTrue("the outline ($outline) is left of the text ($article)", outline <= article)
         assertCentred(scenario, "narrow with outline")
+    }
+
+    @Test
+    fun aDocumentWithoutAnOutlineAfterOneWithAnOutlineGetsTheFullColumn() {
+        Reader.open("showcase.md").use { scenario -> afterADocumentWithAnOutline(scenario) }
+    }
+
+    private fun afterADocumentWithAnOutline(scenario: ActivityScenario<MainActivity>) {
+        Reader.waitForDocument(scenario)
+        widen(scenario, 1300)
+        Reader.waitFor(scenario, "getComputedStyle(document.getElementById('outline')).display === 'block'")
+        // The next file arrives in the same activity and page, as from the
+        // file manager while LeanMark is open.
+        var launched: Intent? = null
+        scenario.onActivity { activity ->
+            launched = activity.intent
+            Reader.instrumentation.callActivityOnNewIntent(activity, Reader.viewIntent(FixtureProvider.uri("simple.md")))
+        }
+        Reader.waitFor(scenario, "document.getElementById('fileName').textContent === 'simple.md'")
+        Reader.waitForDocument(scenario)
+        Reader.waitFor(scenario, "document.getElementById('outline').hidden")
+        assertEquals(720, articleWidth(scenario))
+        assertCentred(scenario, "narrow after a document with an outline")
+        // ActivityScenario finds its activity by the intent it started it with.
+        scenario.onActivity { it.intent = launched }
     }
 
     @Test
