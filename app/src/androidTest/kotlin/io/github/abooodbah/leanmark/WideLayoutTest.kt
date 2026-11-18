@@ -62,7 +62,11 @@ class WideLayoutTest {
     }
 
     @Test
-    fun aDocumentWithoutAnOutlineAfterOneWithAnOutlineGetsTheFullColumn() = Reader.open("showcase.md").use { scenario ->
+    fun aDocumentWithoutAnOutlineAfterOneWithAnOutlineGetsTheFullColumn() {
+        Reader.open("showcase.md").use { scenario -> afterADocumentWithAnOutline(scenario) }
+    }
+
+    private fun afterADocumentWithAnOutline(scenario: ActivityScenario<MainActivity>) {
         Reader.waitForDocument(scenario)
         widen(scenario, 1300)
         Reader.waitFor(scenario, "getComputedStyle(document.getElementById('outline')).display === 'block'")
