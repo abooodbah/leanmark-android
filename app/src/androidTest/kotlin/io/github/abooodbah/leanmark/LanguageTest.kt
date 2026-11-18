@@ -90,8 +90,7 @@ class LanguageTest {
             assertEquals("zh-CN", Reader.js(scenario, "document.documentElement.lang"))
             assertEquals(CHINESE, Reader.js(scenario, LABELS))
             assertEquals("本页内容", Reader.text(scenario, "#outlineSheetTitle"))
-            Reader.swipeUp(scenario)
-            Reader.waitFor(scenario, "window.scrollY > 100")
+            Reader.scrollDownByTouch(scenario)
             scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
             Reader.waitFor(scenario, "window.innerWidth > window.innerHeight")
             assertEquals(CHINESE, Reader.js(scenario, LABELS))

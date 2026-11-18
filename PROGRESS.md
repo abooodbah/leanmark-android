@@ -37,6 +37,10 @@ Updated with every merge. The next session starts here.
   and API 34 (WebView 113), budgets against the base branch and an empty
   app, APK contents, the arm64 download size and a native-library
   breakdown. Mutation check: `mutations.yml` with `mutations/*.json`.
+- Two test waits made sturdier after failures with no app change on the
+  API 34 emulator: HighlightTest scrolls again until the page stays at
+  its target (PR #35), and a swipe that the WebView drops after a
+  document appears is retried, up to three times (PR #37).
 - 0.2.0 plan (PR #15), below.
 - Smaller APK: the native library exports only its JNI entry points (PR
   #17, APK 4,103,101 to 2,253,125 bytes) and the APK carries no Kotlin

@@ -132,8 +132,7 @@ class ReaderTest {
             val headings = Reader.js(scenario, "document.querySelectorAll('#article h1, #article h2, #article h3').length").asLong()
             assertTrue("$headings headings", headings > 500)
             assertEquals(0L, Reader.js(scenario, "Math.round(window.scrollY)").asLong())
-            Reader.swipeUp(scenario)
-            Reader.waitFor(scenario, "window.scrollY > 100")
+            Reader.scrollDownByTouch(scenario)
             Reader.swipeUp(scenario)
             Reader.waitFor(scenario, "Number(document.getElementById('readingProgress').getAttribute('aria-valuenow')) >= 0")
         }
