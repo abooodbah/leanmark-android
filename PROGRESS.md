@@ -69,87 +69,105 @@ Updated with every merge. The next session starts here.
   reader files 1,206 ms. The 0.6.0 reader costs nothing measurable; the +54
   to +81 ms in earlier budgets runs is base-against-branch spread, which
   read 233 and 224 ms (#25) and 406 and 303 ms (#24) for the same app code.
+- v0.2.0 is tagged at b4f61a3 and released with its APK, bundle, debug
+  APK, empty app, phone test files and a `.sha256` for each (made from the
+  maintainer's computer).
 
 ## In progress
 
-- The v0.2.0 tag, pre-release and release files. This session cannot
-  create tags, so they are made from the maintainer's computer: see
-  "Releasing 0.2.0" below.
+- 0.3.0, step 1: this plan.
 
-## Releasing 0.2.0
+## Plan for 0.3.0
 
-After the version bump is merged, from a clone of main at that commit:
+Desktop LeanMark released 0.7.0, 0.7.1 and 0.8.0 after Android 0.2.0
+(2026-11-06), and added build provenance attestations on 2026-11-18.
+Android 0.2.0 has the reader files from desktop commit 1e9f20e, which is in
+0.7.0 but before its last two reader changes. Sources: the desktop
+`CHANGELOG.md`, `docs/releases/v0.7.0.md`, `v0.7.1.md`, `v0.8.0.md` and the
+commits from 1e9f20e to v0.8.0 (0b13685).
 
-```sh
-git tag -a v0.2.0 -F docs/releases/v0.2.0.md
-git push origin v0.2.0
-gh release create v0.2.0 --prerelease --title "LeanMark 0.2.0" --notes-file docs/releases/v0.2.0.md
-gh workflow run release.yml -f tag=v0.2.0
-gh workflow run play-bundle.yml -f tag=v0.2.0
-```
+### Desktop changes since 0.2.0
 
-The "Release files" run attaches `LeanMark-0.2.0.apk`, `LeanMark-0.2.0.aab`,
-`LeanMark-0.2.0-debug.apk`, `empty-app.apk`,
-`LeanMark-0.2.0-phone-test-files.zip` and a `.sha256` for each. The "Play
-bundle" run keeps `LeanMark-0.2.0-play.aab` and its `.sha256` as a workflow
-artifact for 7 days; nothing is uploaded to Google Play.
+| Desktop change | Desktop version | On Android |
+| --- | --- | --- |
+| Current section marked in "On this page" | 0.7.0 | Already in 0.2.0 (PR #25). |
+| A resize into or out of the narrow layout lays the page out once | 0.7.0 | Already in 0.2.0 (reader files from 1e9f20e). |
+| Repeated headings get their ids in linear time | 0.7.0 (#30) | Port, with the reader files (step 2). |
+| A theme change redraws diagrams only when their colours change | 0.7.0 (#32) | Port, with the reader files (step 2). It is the "For the desktop" row of the efficiency review. |
+| Linux stops sending each theme change back to the page | 0.7.0 (#31) | Port (step 3). The Android app sends a chosen theme back too. It will save the theme and not answer. |
+| Launch time workflow also measures memory with an 8 MiB file | 0.7.0 | Skip. Windows tooling; the budgets job measures the Android builds. |
+| A document without an outline gets the full column from 1180 px wide | 0.7.1 (#35) | Port, with the reader files (step 2). It shows on tablets in landscape and other screens 1180 px wide or more. Checked on a tablet emulator in landscape. |
+| Simplified Chinese interface and a Language choice: System, English, 简体中文 | 0.8.0 (#40) | Port (step 4). See below. |
+| Chinese file dialog and start-up error boxes on Windows | 0.8.0 (#40) | Skip. Android's file picker is the system's and follows the phone's language. |
+| A README section in 简体中文 | 0.8.0 (#40) | Skip. It would need new Chinese text about the Android app, and only desktop wording is used. |
+| The Microsoft Store lists the app as LeanMark Markdown Viewer | 0.8.0 (#41) | Skip. The Android app name, package id and launcher label stay LeanMark. The maintainer changes the Google Play listing. |
+| Website and README pages (#38, #39) | after 0.7.1 | Skip. Desktop website. |
+| Build provenance attestations for release files | after 0.8.0 (#46) | Port (step 5). |
 
-## Plan for 0.2.0
+### Simplified Chinese on Android
 
-The work goes in this order. Each step is its own pull request, merged when
-CI is green, and this file is updated with every merge.
+- The reader page: the desktop's English and Chinese tables in reader.js,
+  unchanged. The app opens `reader.html?lang=en` or `?lang=zh-CN`, so the
+  first paint is already in the right language, and the host message names
+  the saved setting and the system's language, which shows the Language
+  group in the settings sheet.
+- The strings android-host.js adds (the settings button's name, the "On
+  this page" button, sheet title and close button) use the desktop's keys
+  (`settings.title`, `outline.title`, `close.label`), so the page translates
+  them with the rest.
+- The app's own text (status and error messages, the name of shared text):
+  Android string resources. `values/strings.xml` is English;
+  `values-zh-rCN/strings.xml` has only the strings whose English the desktop
+  translates, with the desktop's Chinese. Android uses zh-rCN for zh-CN,
+  zh-SG, zh-Hans and a bare zh, and English for Traditional Chinese
+  (zh-TW, zh-HK, zh-MO, zh-Hant), as the desktop does. A JVM test checks
+  each Chinese string against the desktop tables, and lists the English
+  strings with no desktop translation.
+- Messages from the C++ core (for example "This file is not valid UTF-8")
+  are the desktop's English sentences; the page translates them as on the
+  desktop.
+- The setting: System, English or 简体中文, saved as `language` beside the
+  theme. A missing or unknown value gives System, so settings from 0.2.0
+  follow the phone and an English phone sees no change. System follows the
+  language Android picks for the app, including a per-app language on
+  Android 13 and later.
 
-1. Efficiency review. Time what runs on open, scroll, find, zoom, theme
-   switch and rotation, with release builds in the budgets job, and record
-   what the app allocates and keeps. The findings go in the table below.
-   Clear wins are fixed one per pull request, with numbers before and after.
-   The rest is listed for the maintainer to decide.
-2. Desktop 0.6.0 port. The reader files come from desktop tag v0.6.0 with
-   `scripts/update-reader-assets.sh`. The Android side:
-   - Text width: Narrow, Wide and Full. The app saves the choice and sends it
-     with the host message. Settings from 0.1.x have no width and open in
-     Narrow, as on the desktop.
-   - Zoom that enlarges only the document. The WebView's text zoom follows
-     only the system font size; the reader zooms the document with CSS zoom.
-     A zoom level saved by 0.1.x loads at the same text size. Pinch zoom
-     steps through the same levels instead of magnifying the whole screen,
-     so the toolbar keeps its size. A saved level outside the range gives
-     100%.
-   - Settings button and sheet with theme, text width and zoom. On a phone
-     (up to 560 px wide) the desktop panel becomes a sheet at the bottom of
-     the screen; on wider screens it sits beside the document as on the
-     desktop. Back closes it.
-   - The coloured theme dot. On a phone the theme button shows only the dot
-     so the toolbar keeps one row; its accessible name says the theme.
-   - The missing-image note in theme colours, which comes with reader.css.
-3. Section highlight in "On this page". Desktop LeanMark adds it first
-   (0.7.0); the reader files are then updated from that commit and checked
-   on the emulator in all five themes. The desktop shows the outline only
-   from 1180 px wide, so a phone shows none. On a phone the outline opens as
-   a sheet instead, with the current section highlighted and kept in view.
-4. Version 0.2.0: version bump, F-Droid changelog, annotated tag v0.2.0, a
-   GitHub pre-release with plain notes, then the "Release files" workflow
-   for the APK, the bundle and their sums, and the "Play bundle" workflow.
-   Nothing is uploaded to Google Play.
+### Steps
+
+Each step is its own pull request: failing tests first, then the change,
+merged when CI is green. This file is updated with every merge.
+
+1. This plan.
+2. Reader files and core from desktop tag v0.8.0 with
+   `scripts/update-reader-assets.sh`. The desktop pins the same Mermaid
+   (11.16.1) and fonts (5.3.0), so those files stay. Tests first: a document
+   without an outline gets the Narrow, Wide and Full columns, centred, on a
+   page 1300 px wide, and on a tablet emulator in landscape. CI gets a
+   tablet emulator job (`pixel_tablet`, API 34) for the wide-screen tests.
+   The budgets job gives theme switch, open time and memory against main.
+3. Stop sending a chosen theme back to the page, with the theme switch
+   timed before and after.
+4. Simplified Chinese interface, as above, with emulator tests: open through
+   `ACTION_VIEW` with a `content://` URI in each language, the sheet's
+   Language choice saved and used on the next start, rotation, a corrupt
+   file and a file over the size limit with their messages in Chinese, and
+   0.2.0 settings on an English phone.
+5. Build provenance attestations: `release.yml` gives its job `id-token:
+   write` and `attestations: write`, and runs
+   `actions/attest-build-provenance` v4.2.2 (pinned to
+   4d101475d8b20a2381f78447822ac1eab6504dd8) on the APK and the bundle
+   after they are built, checked and hashed, before they are attached to
+   the release. The README says how to check a download with
+   `gh attestation verify` and that this is not code signing.
+6. Version 0.3.0 (versionCode 5): `CHANGELOG.md`, README, the F-Droid
+   changelog `5.txt` and `docs/releases/v0.3.0.md`. This session cannot
+   push tags, so the tag, the release and the "Release files" and "Play
+   bundle" runs are left for the maintainer.
 
 Every change keeps the stack (Kotlin, classic Views, WebView), adds no
 library to the app, and keeps the app without permissions.
 
 ## Desktop features the app lacks
-
-From the desktop CHANGELOG.md and docs/releases/ for releases after
-2026-10-29. Desktop 0.6.0 (2026-10-31) is the only one so far; 0.7.0 is in
-progress.
-
-| Desktop feature | Desktop version | Android plan |
-| --- | --- | --- |
-| Text width: Narrow, Wide, Full, remembered | 0.6.0 | Port (step 2). On a phone held upright all three look the same, because the screen is narrower than the 720 px column; they differ in landscape, on tablets and when zoomed out. |
-| Settings button and panel: theme, width, zoom | 0.6.0 | Port (step 2) as a sheet on phones. |
-| Shortcut list in the settings panel, Ctrl+/ and F1 | 0.6.0 | Skipped on Android. Phones have no keyboard. With a hardware keyboard the reader's shortcuts still work, including Ctrl+/ for the sheet. |
-| Theme dot, tooltip and accessible name | 0.6.0 | Port (step 2). WebView shows no tooltips; the accessible name carries the theme. |
-| Zoom enlarges only the document | 0.6.0 | Port (step 2), including pinch. |
-| Missing-image note in theme colours | 0.6.0 | Port (step 2). |
-| Current section highlighted in "On this page" | 0.7.0 (in progress) | Port (step 3), with an outline sheet on phones. |
 
 Older desktop features the app still lacks, and why:
 
