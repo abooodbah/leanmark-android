@@ -51,6 +51,27 @@ class ThemeTest {
         assertEquals(listOf("light", "dark", "dim", "dusk", "system"), saved)
     }
 
+    /**
+     * The page already shows a theme it chose, so the app saves it and does
+     * not send it back (desktop 0.7.0 stopped this on Linux, where the
+     * answer drew every diagram again). Here the page posts Dim without
+     * showing it, so an answer would show.
+     */
+    @Test
+    fun aThemeThePageChoosesIsSavedAndNotSentBack() = Reader.open("showcase.md").use { scenario ->
+        Reader.waitForDocument(scenario)
+        assertEquals("system", Reader.js(scenario, "document.documentElement.dataset.theme || 'system'"))
+        Reader.js(scenario, "window.webkit.messageHandlers.leanmark.postMessage('theme|dim')")
+        waitForSaved("dim")
+        assertEquals("dim", prefs.getString("theme", null))
+        // Long enough for an answer to arrive and be applied.
+        android.os.SystemClock.sleep(1_000)
+        assertEquals("system", Reader.js(scenario, "document.documentElement.dataset.theme || 'system'"))
+        var light = true
+        scenario.onActivity { light = lightBarIcons(it) }
+        assertEquals("the bars follow the saved theme", false, light)
+    }
+
     @Test
     fun dimAndDuskApplyTheDesktopTokenValues() = Reader.open("showcase.md").use { scenario ->
         Reader.waitForDocument(scenario)

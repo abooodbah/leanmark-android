@@ -40,8 +40,6 @@ object HostMessages {
     fun status(message: String, tone: String = "info") =
         """{"type":"status","tone":${Json.quote(tone)},"message":${Json.quote(message)}}"""
 
-    fun theme(value: String) = """{"type":"theme","value":${Json.quote(value)}}"""
-
     fun zoom(percent: Int) = """{"type":"zoom","percent":$percent}"""
 
     fun copied(requestId: Long, ok: Boolean) = """{"type":"copied","requestId":$requestId,"ok":$ok}"""

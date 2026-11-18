@@ -499,9 +499,10 @@ class MainActivity : Activity() {
             ReaderCommand.OpenFile -> pickDocument()
             ReaderCommand.Reload -> source?.let(::open)
             is ReaderCommand.Theme -> {
+                // The page already shows the theme it chose. Sending it back
+                // only made the page apply it again (desktop 0.7.0, Linux).
                 theme = command.value
                 prefs.edit().putString(KEY_THEME, theme).apply()
-                send(HostMessages.theme(theme))
                 applyBarColors()
             }
             is ReaderCommand.Zoom -> applyZoom(MarkdownCore.stepZoom(zoom, command.direction))

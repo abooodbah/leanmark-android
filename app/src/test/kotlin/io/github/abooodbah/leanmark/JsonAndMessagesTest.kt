@@ -80,7 +80,6 @@ class JsonAndMessagesTest {
 
         assertEquals("empty", JSONObject(HostMessages.empty("light")).getString("type"))
         assertEquals("warning", JSONObject(HostMessages.status("x", "warning")).getString("tone"))
-        assertEquals("dark", JSONObject(HostMessages.theme("dark")).getString("value"))
         assertEquals(125, JSONObject(HostMessages.zoom(125)).getInt("percent"))
         val copied = JSONObject(HostMessages.copied(4294967295L, true))
         assertEquals(4294967295L, copied.getLong("requestId"))
