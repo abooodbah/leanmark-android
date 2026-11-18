@@ -50,6 +50,9 @@ def problems(text):
     for subject in ("dist/LeanMark-${{ env.VERSION }}.apk", "dist/LeanMark-${{ env.VERSION }}.aab"):
         if subject not in step:
             found.append(f"the attest step must cover {subject}")
+    collect = dict(order).get("Name, collect and hash", "")
+    if 'echo "VERSION=$version" >> "$GITHUB_ENV"' not in collect:
+        found.append("\"Name, collect and hash\" must set VERSION for the attest step")
     for before in ("Check the signer", "Name, collect and hash"):
         if before not in names or names.index(before) > attest[0]:
             found.append(f"the attest step must come after \"{before}\"")
