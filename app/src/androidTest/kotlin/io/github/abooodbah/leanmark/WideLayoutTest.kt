@@ -1,5 +1,6 @@
 package io.github.abooodbah.leanmark
 
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.util.Log
 import androidx.test.core.app.ActivityScenario
@@ -67,7 +68,9 @@ class WideLayoutTest {
         Reader.waitFor(scenario, "getComputedStyle(document.getElementById('outline')).display === 'block'")
         // The next file arrives in the same activity and page, as from the
         // file manager while LeanMark is open.
+        var launched: Intent? = null
         scenario.onActivity { activity ->
+            launched = activity.intent
             Reader.instrumentation.callActivityOnNewIntent(activity, Reader.viewIntent(FixtureProvider.uri("simple.md")))
         }
         Reader.waitFor(scenario, "document.getElementById('fileName').textContent === 'simple.md'")
@@ -75,6 +78,8 @@ class WideLayoutTest {
         Reader.waitFor(scenario, "document.getElementById('outline').hidden")
         assertEquals(720, articleWidth(scenario))
         assertCentred(scenario, "narrow after a document with an outline")
+        // ActivityScenario finds its activity by the intent it started it with.
+        scenario.onActivity { it.intent = launched }
     }
 
     @Test
