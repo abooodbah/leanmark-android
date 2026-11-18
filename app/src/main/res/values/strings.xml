@@ -1,4 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">LeanMark</string>
+<!-- The app's own text. English is the fallback: values-zh-rCN translates
+     only the strings the desktop app translates, with the desktop's words,
+     and InterfaceLanguageTest lists the rest. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="app_name" translatable="false">LeanMark</string>
+
+    <!-- Shown in the reader page as the document's error or a status. -->
+    <string name="cannot_read">LeanMark could not read this file. The app that shared it may have withdrawn access. Open it again from that app.</string>
+    <string name="cannot_parse">LeanMark could not parse this Markdown document.</string>
+    <string name="too_large">This file is larger than LeanMark\'s 32 MB safety limit. Open it in an editor if you need to inspect the raw text.</string>
+    <string name="too_large_for_device">This file is too large to show on this device.</string>
+    <string name="no_file_picker">This device has no file picker.</string>
+    <string name="no_app_for_link">No app on this device can open that link.</string>
+    <string name="open_before_copying">Open a document before copying.</string>
+    <string name="changed_copy_again">The file changed since LeanMark opened it, so it was reloaded. Copy again to get the current text.</string>
+    <string name="section_too_large">That section is too large to copy.</string>
+    <string name="link_scheme_blocked">That link scheme is blocked for safety.</string>
+    <string name="link_other_files">LeanMark can\'t follow links to other files on Android. Open that file from your file manager.</string>
+
+    <!-- The document name for text shared without a subject, or a file
+         whose provider gives no name. -->
+    <string name="shared_text">Shared text</string>
+    <string name="untitled">Untitled.md</string>
+
+    <!-- Shown instead of the reader page. %1$d is the oldest WebView the
+         app supports, %2$s the version on the device or webview_none. -->
+    <string name="webview_needed">LeanMark needs Android System WebView %1$d or later to show documents. This device has %2$s. Update Android System WebView from Google Play, then open the file again.</string>
+    <string name="webview_none">none</string>
 </resources>

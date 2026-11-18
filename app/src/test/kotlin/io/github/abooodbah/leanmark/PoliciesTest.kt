@@ -26,7 +26,9 @@ class PoliciesTest {
         }
         val local = LinkAction.forHref("linked-document.md#linked-destination")
         assertTrue(local is LinkAction.Refuse)
-        assertTrue((local as LinkAction.Refuse).message.contains("other files"))
+        assertEquals(R.string.link_other_files, (local as LinkAction.Refuse).message)
+        assertEquals(LinkAction.Refuse(R.string.link_scheme_blocked), LinkAction.forHref("javascript:alert(1)"))
+        assertEquals(LinkAction.Refuse(R.string.link_scheme_blocked), LinkAction.forHref("//evil.example/x"))
     }
 
     @Test
@@ -136,7 +138,8 @@ class PoliciesTest {
         assertFalse(WebViewSupport.isSupported("68.0.3440.91"))
         assertFalse(WebViewSupport.isSupported("58.0.3029.125"))
         assertFalse(WebViewSupport.isSupported(null))
-        assertTrue(WebViewSupport.message("58.0.3029.125").contains("58.0.3029.125"))
-        assertTrue(WebViewSupport.message(null).contains("none"))
+        assertEquals("58.0.3029.125", WebViewSupport.found("58.0.3029.125"))
+        assertEquals(null, WebViewSupport.found(" "))
+        assertEquals(null, WebViewSupport.found(null))
     }
 }

@@ -18,10 +18,6 @@ object WebViewSupport {
         return major >= MINIMUM_MAJOR
     }
 
-    fun message(versionName: String?): String {
-        val found = versionName?.takeIf { it.isNotBlank() } ?: "none"
-        return "LeanMark needs Android System WebView $MINIMUM_MAJOR or later to show " +
-            "documents. This device has $found. Update Android System WebView from " +
-            "Google Play, then open the file again."
-    }
+    /** The version to name in R.string.webview_needed, or null for none. */
+    fun found(versionName: String?): String? = versionName?.takeIf { it.isNotBlank() }
 }

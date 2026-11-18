@@ -26,6 +26,14 @@ object ReaderAssets {
 
     val paths: Set<String> get() = files.keys
 
+    /**
+     * The page in [language], so its first paint is already in it (desktop
+     * 0.8.0's Windows host does the same). reader.js accepts only the
+     * languages it has tables for.
+     */
+    fun pageUrl(language: String): String =
+        PAGE_URL + "?lang=" + (if (language in InterfaceLanguage.LANGUAGES) language else "en")
+
     data class Asset(val assetPath: String, val mimeType: String)
 
     /** The packaged file for [url], or null when the request must be blocked. */

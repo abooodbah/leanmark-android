@@ -265,17 +265,38 @@
     }
   });
 
+  // The strings this file adds to the page use the desktop's keys
+  // (data-i18n and data-i18n-<attribute>), so reader.js writes them in the
+  // page's language with the rest when the language changes (desktop 0.8.0).
+  // Their first text comes from an element reader.js has already written.
+  function pageText(key, fallback) {
+    var node = document.querySelector('[data-i18n="' + key + '"]');
+    if (node) {
+      return node.textContent;
+    }
+    node = document.querySelector('[data-i18n-aria-label="' + key + '"]');
+    return node ? node.getAttribute("aria-label") : fallback;
+  }
+
   // The settings panel lists keyboard shortcuts on the desktop. Phones have
-  // no keyboard, so the Android panel holds only theme, text width and zoom,
-  // and the button says so. A hardware keyboard's shortcuts still work.
+  // no keyboard, so the Android panel holds only theme, text width,
+  // language and zoom, and the button is named after the panel's title. A
+  // hardware keyboard's shortcuts still work.
   function nameTheSettingsButton() {
     var button = document.getElementById("settingsButton");
     if (button) {
-      button.title = "Settings";
-      button.setAttribute("aria-label", "Settings");
+      var name = pageText("settings.title", "Settings");
+      button.title = name;
+      button.setAttribute("aria-label", name);
     }
   }
   document.addEventListener("DOMContentLoaded", nameTheSettingsButton);
+  // reader.js sets the root's lang first when it changes the language, then
+  // writes the button's desktop title; this runs after both.
+  new MutationObserver(nameTheSettingsButton).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["lang"]
+  });
 
   // Below 560 px the desktop stylesheet hides the file name but keeps the
   // find field at its natural width and an empty 52 px match count, so the
@@ -369,7 +390,8 @@
     button.id = "outlineButton";
     button.type = "button";
     button.className = "outline-button";
-    button.setAttribute("aria-label", "On this page");
+    button.setAttribute("data-i18n-aria-label", "outline.title");
+    button.setAttribute("aria-label", pageText("outline.title", "On this page"));
     button.setAttribute("aria-haspopup", "dialog");
     button.setAttribute("aria-expanded", "false");
     button.setAttribute("aria-controls", "outlineSheet");
@@ -385,11 +407,13 @@
     var title = document.createElement("span");
     title.id = "outlineSheetTitle";
     title.className = "outline-label";
-    title.textContent = "On this page";
+    title.setAttribute("data-i18n", "outline.title");
+    title.textContent = pageText("outline.title", "On this page");
     var close = document.createElement("button");
     close.type = "button";
     close.className = "viewer-button";
-    close.setAttribute("aria-label", "Close");
+    close.setAttribute("data-i18n-aria-label", "close.label");
+    close.setAttribute("aria-label", pageText("close.label", "Close"));
     close.appendChild(icon("M4 4l8 8M12 4l-8 8"));
     header.appendChild(title);
     header.appendChild(close);

@@ -92,11 +92,30 @@ Updated with every merge. The next session starts here.
   went from 9,849 to 5,271 ms and from 8,541 to 4,112 ms (run 44313165483,
   two attempts). The Language group of the settings panel stays hidden
   until the app reports a language.
+- Simplified Chinese interface (PR #32), from desktop 0.8.0. The page
+  opens as `reader.html?lang=en` or `?lang=zh-CN`, so its first paint is
+  in the interface language; the host message names the setting and the
+  phone's language, which shows the Language group (System, English,
+  简体中文) in the sheet. A choice is saved as `language`; settings from
+  0.2.0 have none and follow the phone. System follows the language
+  Android picks for the app (zh-CN, zh-SG, zh-Hans and zh give Chinese;
+  Traditional Chinese gives English), including a per-app language on
+  Android 13. The app's own text moved to string resources:
+  `values-zh-rCN` has the desktop's Chinese for the three strings the
+  desktop translates (`cannot_parse`, `too_large`,
+  `open_before_copying`). These have no desktop translation and stay
+  English: `cannot_read`, `too_large_for_device`, `no_file_picker`,
+  `no_app_for_link`, `changed_copy_again`, `section_too_large`,
+  `link_scheme_blocked`, `link_other_files`, `shared_text`, `untitled`,
+  `webview_needed`, `webview_none`. The strings android-host.js adds use
+  the desktop's keys. The bundle keeps every language in the base APK, so
+  a phone set to English can show the Chinese strings; CI checks it. APK
+  2,258,929 to 2,261,401 bytes. Tests: `LanguageTest` (11),
+  `InterfaceLanguageTest` (11).
 
 ## In progress
 
 - 0.3.0, step 3: stop sending a chosen theme back to the page (#34).
-- 0.3.0, step 4: the Simplified Chinese interface (#32).
 
 ## Plan for 0.3.0
 
@@ -245,6 +264,12 @@ need a phone to verify, so they are not clear wins.
 - The tablet emulator job runs only `WideLayoutTest`; the other tests
   assume a phone. On that tablet Android 14 letterboxes the app when it
   asks for portrait, so the test's portrait page is 463 px wide.
+- The Chinese text has not been reviewed by a native speaker, as on the
+  desktop. Traditional Chinese keeps English. The twelve app strings
+  listed under Done stay English in a Chinese interface, and text inside
+  Mermaid diagrams, the store texts, the fastlane texts and the site are
+  English.
+- The per-app language test needs Android 13, so it runs on API 34 only.
 
 - On a phone held upright the three text widths look the same: the screen
   is narrower than the 720 px column. They differ in landscape, on tablets
