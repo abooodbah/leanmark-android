@@ -23,6 +23,15 @@ Updated with every merge. The next session starts here.
   (2026-10-30, the first APK signed with the stable release key). The
   "Release files" workflow attaches the APK, the bundle and their sums; the
   "Play bundle" workflow builds the upload-key bundle as an artifact.
+- Build provenance attestations (PR #33): the "Release files" job may
+  request an OIDC token and write attestations, and runs
+  `actions/attest-build-provenance` v4.2.2 (pinned to 4d10147) on
+  `LeanMark-<version>.apk` and `.aab` after they are signed, checked and
+  hashed, before they are attached. The release is created as a draft and
+  published after the run. `scripts/check-release-workflow.py` checks this
+  in CI, since the workflow runs only for a tag; it has not run for a tag
+  yet. The README says how to check a download with `gh attestation
+  verify`.
 - CI: lint, JVM tests, the desktop core's tests (ctest), release APK and
   bundle, the permission check, instrumented tests on API 26 (WebView 69)
   and API 34 (WebView 113), budgets against the base branch and an empty
@@ -88,7 +97,6 @@ Updated with every merge. The next session starts here.
 
 - 0.3.0, step 3: stop sending a chosen theme back to the page (#34).
 - 0.3.0, step 4: the Simplified Chinese interface (#32).
-- 0.3.0, step 5: build provenance attestations (#33).
 
 ## Plan for 0.3.0
 
