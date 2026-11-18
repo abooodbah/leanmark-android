@@ -112,10 +112,15 @@ Updated with every merge. The next session starts here.
   a phone set to English can show the Chinese strings; CI checks it. APK
   2,258,929 to 2,261,401 bytes. Tests: `LanguageTest` (11),
   `InterfaceLanguageTest` (11).
+- A theme the page chooses is saved and no longer sent back (PR #34), as
+  desktop 0.7.0 did on Linux. With the 0.2.0 reader the answer drew every
+  diagram again; the v0.8.0 reader already skips that redraw, so the theme
+  switch on large.md stays the same: 4,181 against 4,145 ms (run
+  44318726659).
 
 ## In progress
 
-- 0.3.0, step 3: stop sending a chosen theme back to the page (#34).
+- 0.3.0, step 6: version 0.3.0.
 
 ## Plan for 0.3.0
 
@@ -236,7 +241,7 @@ Findings. Numbers are from run 41981714168 (PR #16) unless a PR is named.
 | --- | --- | ---: | --- | --- |
 | Native library (`CMakeLists.txt`) | The C++ runtime exported 1,975 symbols, so the linker kept all of its code | APK 4,103,101 bytes; arm64 `.so` 1,113,648 bytes | Export only the JNI entry points (version script) | Fixed in #17: APK 2,253,125 bytes, arm64 `.so` 411,128, arm64 download 1,497,097 to 1,294,523 |
 | APK (`build.gradle.kts`) | Kotlin metadata files nothing reads | 13,728 bytes | Leave them out of packaging | Fixed in #18 |
-| Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours, and again when the app sends the theme back | 5,228 ms on large.md (11 diagrams) | Desktop 0.7.0 skips the redraw when the diagram colours stay the same | Fixed with the v0.8.0 reader files in #31: 9,849 to 5,271 ms and 8,541 to 4,112 ms (run 44313165483) |
+| Theme switch (`reader.js`) | Every Mermaid diagram is drawn again in the new colours, and again when the app sends the theme back | 5,228 ms on large.md (11 diagrams) | Desktop 0.7.0 skips the redraw when the diagram colours stay the same | Fixed with the v0.8.0 reader files in #31: 9,849 to 5,271 ms and 8,541 to 4,112 ms (run 44313165483). #34 stops the answer |
 | Zoom (`WebSettings.textZoom`) | Enlarges the toolbar too and lays the whole page out again | 786 ms per step on large.md | The reader zooms only the document (desktop 0.6.0) | Replaced in #19: 1,405 to 1,144 ms per step (run 41987196578) |
 | Dark mode switch (manifest `configChanges`) | Android recreates the activity: the file is read, parsed and drawn again | 1,245 ms to drawn on large.md, against 167 ms for a rotation | Handle `uiMode` in the activity | Fixed in #28: first frame 1,369 to 1,198 ms, diagrams 4,550 to 3,228 ms, position kept |
 | Opening large.md in the page | Mermaid draws 11 diagrams after the text is on screen | Text drawn 1,349 ms after creation; diagrams done 3,561 ms after the document arrives | Desktop reader code (Mermaid). The text is readable before the diagrams | No change |
