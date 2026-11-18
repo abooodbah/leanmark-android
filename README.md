@@ -21,6 +21,20 @@ the test; try again a day later. Google asks testers to keep the app installed
 for 14 days. The APK is also attached to each
 [Android release](https://github.com/abooodbah/leanmark-android/releases).
 
+## Checking a download
+
+Each file on a release page has a `.sha256` next to it. From 0.3.0 the APK
+and the bundle also carry a build provenance attestation: a record, signed
+through GitHub, that the file was built by this repository's "Release
+files" workflow from the tagged source. To check one with the GitHub CLI:
+
+```sh
+gh attestation verify LeanMark-0.3.0.apk --repo abooodbah/leanmark-android
+```
+
+This shows where a file was built. It is not code signing: Android checks
+the APK's own signature, made with the same release key as before.
+
 ## Building
 
 You need JDK 17 and the Android SDK (platform 36). Then:
