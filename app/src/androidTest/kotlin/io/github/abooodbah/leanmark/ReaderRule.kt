@@ -101,6 +101,23 @@ object Reader {
     }
 
     /**
+     * Swipes up until the page has scrolled past [minimum] px, at most three
+     * times. On the CI emulators the WebView now and then drops the first
+     * swipe after a document appears, and the page stays at the top.
+     */
+    fun scrollDownByTouch(scenario: ActivityScenario<MainActivity>, minimum: Int = 100) {
+        repeat(3) {
+            swipeUp(scenario)
+            val deadline = SystemClock.uptimeMillis() + 5_000
+            while (SystemClock.uptimeMillis() < deadline) {
+                if ((js(scenario, "window.scrollY") as Number).toDouble() > minimum) return
+                SystemClock.sleep(100)
+            }
+        }
+        fail("three swipes did not scroll the page past $minimum px; state: " + js(scenario, STATE))
+    }
+
+    /**
      * Two fingers in a vertical line on the middle of the WebView, [fromSpan]
      * pixels apart, the lower one held and the upper one moved until they are
      * [toSpan] apart: spreading them zooms in, pinching zooms out. The point
