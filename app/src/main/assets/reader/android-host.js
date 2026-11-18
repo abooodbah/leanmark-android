@@ -135,8 +135,8 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     send("timing|page-dom|" + Math.round(performance.now()));
-    // The app confirms a theme by sending it back, which sets the same value
-    // again; only real changes are timed.
+    // Only real changes are timed: a document message sets the same theme
+    // and width again.
     new MutationObserver(function (records) {
       records.forEach(function (record) {
         var name = record.attributeName === "data-theme" ? "theme" : "width";

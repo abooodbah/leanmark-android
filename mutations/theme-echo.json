@@ -1,0 +1,8 @@
+[
+  {"name": "Send a chosen theme back to the page", "suite": "device", "tests": ["ThemeTest"],
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt",
+   "old": "                prefs.edit().putString(KEY_THEME, theme).apply()\n                applyBarColors()\n", "new": "                prefs.edit().putString(KEY_THEME, theme).apply()\n                send(\"\"\"{\"type\":\"theme\",\"value\":\"$theme\"}\"\"\")\n                applyBarColors()\n"},
+  {"name": "Save no theme the page chose", "suite": "device", "tests": ["ThemeTest"],
+   "file": "app/src/main/kotlin/io/github/abooodbah/leanmark/MainActivity.kt",
+   "old": "                prefs.edit().putString(KEY_THEME, theme).apply()\n                applyBarColors()\n", "new": "                applyBarColors()\n"}
+]
