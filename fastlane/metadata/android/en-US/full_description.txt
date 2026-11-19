@@ -10,7 +10,8 @@ What it does:
 - Pinch to zoom the text; the toolbar keeps its size, and the system font size still applies
 - Text width: Narrow, Wide or Full
 - On this page: the document's sections, with the one you are reading highlighted
-- Settings sheet for theme, text width and zoom
+- Settings sheet for theme, text width, zoom and language
+- The app in English or Simplified Chinese (简体中文): it follows the phone, or pick it in the settings sheet
 - Five themes: System (follows the phone), Light, Dark, and two softer dark themes, Dim and Dusk
 - Keeps your place when you rotate the phone
 - Links to websites open in your browser only when you tap them
